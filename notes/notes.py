@@ -14,8 +14,12 @@ def note_to_freq(octave, note, accidental):
     
     semitone = (octave - 4) * 12 + notes[note] * 2
     if accidental in ('b', '♭'):
+        if note == 'F':
+            raise ValueError('F-flat does not exist')
         semitone -= 1
     elif accidental in ('#', '♯'):
+        if note == 'E':
+            raise ValueError('E-sharp does not exist')
         semitone += 1
     
     return _reference_freq * (_scale_constant ** semitone)
