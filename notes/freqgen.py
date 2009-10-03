@@ -5,6 +5,7 @@ import math
 import struct
 import itertools
 from contextlib import closing
+from collections import deque
 
 def generate_samples(frequency, frame_rate=48000):
     frame_rate = float(frame_rate)
@@ -38,8 +39,20 @@ def write_samples(source, output_file, duration=5.0, frame_rate=48000):
         out.setframerate(frame_rate)
         out.setsampwidth(2)
         
+        chunk = deque()
+        
+        def write_chunk():
+            if len(chunk) > 0:
+                out.writeframes(struct.pack('%dh' % len(chunk), *chunk))
+        
         for sample in itertools.islice(source, int(duration * frame_rate)):
-            out.writeframes(struct.pack('h', sample))
+            chunk.append(sample)
+            
+            if len(chunk) >= 1024:
+                write_chunk()
+                chunk = deque()
+        
+        write_chunk()
 
 if __name__ == '__main__':
     import sys
