@@ -13,11 +13,13 @@ def note_to_freq(octave, note, accidental):
         for i, n in enumerate(('B', 'A', 'G', 'F', 'E', 'D', 'C')))
     
     semitone = (octave - 4) * 12 + notes[note] * 2
-    if accidental in ('b', '♭'):
+    #if accidental in ('b', '♭'):
+    if accidental == 'flat':
         if note == 'F':
             raise ValueError('F-flat does not exist')
         semitone -= 1
-    elif accidental in ('#', '♯'):
+    #elif accidental in ('#', '♯'):
+    elif accidental == 'sharp':
         if note == 'E':
             raise ValueError('E-sharp does not exist')
         semitone += 1
