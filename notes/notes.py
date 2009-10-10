@@ -42,14 +42,36 @@ def freq_to_semitone(frequency):
         return min((pair(math.floor), pair(math.ceil)))
     
     raw = math.log(frequency / _reference_freq, 2) * 12
-    semitone, error = round(raw)
+    error, semitone = round(raw)
     
     return semitone, error
 
 def semitone_to_note(semitone):
-    return semitone
-    # return divmod(semitone + 10, 12)
+    semitone += 48 # use A0 as the origin for this, not A4
+    octave, step = divmod(semitone, 12)
     
+    notes = (
+        ('A', None),
+        ('A', '#'),
+        ('B', None),
+        ('C', None),
+        ('C', '#'),
+        ('D', None),
+        ('D', '#'),
+        ('E', None),
+        ('F', None),
+        ('F', '#'),
+        ('G', None),
+        ('G', '#')
+    )
+    
+    if step > 2:
+        octave += 1
+    
+    return (octave,) + notes[step]
+
+def freq_to_note(frequency):
+    return semitone_to_note(freq_to_semitone(frequency)[0])
 
 _note_pattern = re.compile(r'^([A-G])([b♭#♯-♮])?(\d+)$')
 def parse_note(note_description):
@@ -64,13 +86,34 @@ def parse_note(note_description):
     
     return (int(match.group(3)), match.group(1), match.group(2) or None)
 
+def unparse_note(octave, note, accidental, approx_symbols=True):
+    symbols = {
+        'b': ('b', '♭'),
+        '♭': ('b', '♭'),
+        'flat': ('b', '♭'),
+        '#': ('#', '♯'),
+        '♯': ('#', '♯'),
+        'sharp': ('#', '♯')
+    }
+    
+    sym_index = 0 if approx_symbols else 1
+    try:
+        symbol = symbols[accidental][sym_index]
+    except KeyError:
+        symbol = ''
+    return "%s%s%d" % (note, symbol, octave)
+
 if __name__ == '__main__':
     import sys
     
-    if len(sys.argv) < 2:
-        print >>sys.stderr, "usage: python %s {note}[accidental]{octave}" % \
-            sys.argv[0]
-        print >>sys.stderr, "(e.g., A4, C#5, Eb3)"
-        sys.exit(1)
+    semitone, error = freq_to_semitone(float(sys.argv[1]))
+    print "%s (error: %.03f)" % (unparse_note(*semitone_to_note(semitone)),
+        error)
     
-    print "%.03f" % note_to_freq(*parse_note(sys.argv[1]))
+    # if len(sys.argv) < 2:
+    #     print >>sys.stderr, "usage: python %s {note}[accidental]{octave}" % \
+    #         sys.argv[0]
+    #     print >>sys.stderr, "(e.g., A4, C#5, Eb3)"
+    #     sys.exit(1)
+    # 
+    # print "%.03f" % note_to_freq(*parse_note(sys.argv[1]))
