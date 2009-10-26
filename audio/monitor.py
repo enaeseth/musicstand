@@ -5,6 +5,7 @@ from __future__ import with_statement
 from pyaudio import PyAudio, paInt16
 from threading import Thread, Lock, Condition
 from collections import deque
+import struct
 
 class Monitor(object):
     """
@@ -52,7 +53,8 @@ class Monitor(object):
         while self.running:
             samples = self.stream.read(self.chunk_size)
             with self.access:
-                self.buffer.extend(samples)
+                count = len(samples) / 2
+                self.buffer.extend(struct.unpack('%dh' % count, samples))
                 self.samples_ready.notify()
     
     def read(self):

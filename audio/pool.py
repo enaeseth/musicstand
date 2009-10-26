@@ -8,9 +8,9 @@ import traceback
 class ThreadPool(object):
     def __init__(self, workers=2):
         self.running = True
-        self.threads = self._create_threads(workers)
         self.work_available = Condition()
         self.queue = deque()
+        self.threads = self._create_threads(workers)
     
     def execute(self, task):
         self.queue.append(task)
@@ -19,7 +19,8 @@ class ThreadPool(object):
     
     def shutdown(self):
         self.running = False
-        self.work_available.notifyAll()
+        with self.work_available:
+            self.work_available.notifyAll()
     
     def _create_threads(self, workers):
         def create_thread():

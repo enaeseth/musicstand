@@ -68,9 +68,10 @@ class Analyzer(object):
     
     def _analyze(self, samples):
         def perform_analysis():
+            print len(samples), samples[0]
             results = None # fft(samples) or whatever
             if results:
-                self._send_results(result)
+                self._send_results(results)
         
         self.analyzer_pool.execute(perform_analysis)
     
