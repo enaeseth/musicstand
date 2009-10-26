@@ -27,6 +27,8 @@ def main(window_size, interval):
         pass
     finally:
         analyzer.stop()
+    
+    print "All done."
 
 if __name__ == '__main__':
     main(1024, 1024)
