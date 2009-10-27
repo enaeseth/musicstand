@@ -2,11 +2,13 @@ from __future__ import with_statement
 import re
 import lilypondParser
 import PageOpener
+import mutex as mu
 
 class Matcher():
 
 	def __init__(self, filename):
 		self.incomingNotes = [] #The queue!
+		self.lockQueue = mu.mutex()
 		self.lilypond_tuples = lilypondParser.masterMethod(filename)
 		self.current_location = 0
 		self.num_misses = 0
@@ -33,6 +35,12 @@ class Matcher():
 			return lilypond_tuples'''
 			
 	
+	def add(self, freq):
+		note = [(4, "D", "flat")]
+		self.lockQueue.lock(self.incomingNotes.append,note)
+		while self.lockQueue.test():
+			self.lockQueue.unlock()
+	
 	def match(self, new_note):
 		"""
 		Takes the parsed Lilypond array, the current location in the array (as an
@@ -53,7 +61,7 @@ class Matcher():
 	
 	
 	
-	def run(self):		
+	def run(self):
 		# This is my makeshift queue.
 		'''q = []
 		q.append([(4, "D", "flat")])
@@ -68,7 +76,14 @@ class Matcher():
 										  # David and Eric will pass me a False.'''
 		
 		while True:
-			new_note = self.incomingNotes.pop(0)
+			done = False
+			new_note = False
+			while not done:
+				if self.lockQueue.setandtest():
+					if len(self.incomingNotes) != 0:
+						new_note = self.incomingNotes.pop(0)
+						lockQueue.unlock()
+						done = True
 			if new_note == False:
 				break
 			else:
@@ -76,10 +91,12 @@ class Matcher():
 				match(new_note)
 				print "Current location in the array:", self.current_location 
 				print "Current measure:", self.lilypond_tuples[self.current_location][0]
+				'''
 				print "Current number of misses:", self.num_misses
 				if self.num_misses > 2:
 					print "THIS IS VERY BAD. INSERT NATHAN'S CODE HERE"
 				print
+				'''
 				PageOpener.openPage(self.lilypond_tuples[current_location][0])	
 	
 	
