@@ -14,13 +14,13 @@ class Note():
 		self.beatnumber = num
 		self.measure = meas
 		self.duration = dur
-		self.accidental = False
+		self.accidental = None
 		self.octave = octavo
 		
 	def parseNote(self, noteData):
 		self.pitch = noteData[0]
 		if 'is' in noteData:
-			self.accidental = '#'
+			self.accidental = 'sharp'
 		if 'es' in noteData:
 			self.accidental = 'flat'
 		for char in noteData:
@@ -32,7 +32,7 @@ class Note():
 				self.octave -= 1
 				
 	def printNote(self,bigNoteArray):
-		bigNoteArray.append([self.measure, self.beatnumber, self.duration, [self.octave, self.pitch, self.accidental]])
+		bigNoteArray.append([self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]])
 		
 def parseFile(filename):
 	notes = []
@@ -65,6 +65,7 @@ def parseFile(filename):
 		measure = measure + (1/float(thisNote.duration))
 		duration = thisNote.duration
 		
+	print bigNoteArray
 	return bigNoteArray
 	
 	
