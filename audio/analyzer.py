@@ -1,5 +1,5 @@
 # encoding: utf-8
-
+import fft
 from threading import Thread
 from pool import ThreadPool
 
@@ -68,12 +68,14 @@ class Analyzer(object):
     
     def _analyze(self, samples):
         def perform_analysis():
-            print len(samples), samples[0]
-            results = None # fft(samples) or whatever
+            #print len(samples), samples[0]
+            results = 'test' # fft(samples) or whatever
+            #results = fft.fft(samples)
             if results:
                 self._send_results(results)
         
         self.analyzer_pool.execute(perform_analysis)
     
     def _send_results(self, results):
+    	#print 'I AM ABOUT TO CALL ADD'
         self.sender_pool.execute(lambda: self.callback(results))

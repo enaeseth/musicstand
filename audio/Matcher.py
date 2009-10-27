@@ -36,6 +36,7 @@ class Matcher():
 			
 	
 	def add(self, freq):
+		#print 'I AM IN ADD'
 		note = [(4, "D", "flat")]
 		self.lockQueue.lock(self.incomingNotes.append,note)
 		while self.lockQueue.test():
@@ -73,31 +74,36 @@ class Matcher():
 		q.append([(4, "G", "flat")])
 		q.append([(4, "G", "flat")])
 		q.append(False)                    # I'm assuming that when the audio runs out,
-										  # David and Eric will pass me a False.'''
-		
-		while True:
-			done = False
-			new_note = False
-			while not done:
-				if self.lockQueue.setandtest():
-					if len(self.incomingNotes) != 0:
-						new_note = self.incomingNotes.pop(0)
-						lockQueue.unlock()
-						done = True
-			if new_note == False:
-				break
-			else:
-				print "New note:", new_note
-				match(new_note)
-				print "Current location in the array:", self.current_location 
-				print "Current measure:", self.lilypond_tuples[self.current_location][0]
-				'''
-				print "Current number of misses:", self.num_misses
-				if self.num_misses > 2:
-					print "THIS IS VERY BAD. INSERT NATHAN'S CODE HERE"
-				print
-				'''
-				PageOpener.openPage(self.lilypond_tuples[current_location][0])	
+										  # David and Eric will pass me a False.
+										  #incorrect assumption, but we can try-- David'''
+										  
+		try:
+			while True:
+				done = False
+				new_note = False
+				while not done:
+					if self.lockQueue.testandset():
+						if len(self.incomingNotes) != 0:
+							new_note = self.incomingNotes.pop(0)
+							self.lockQueue.unlock()
+							done = True
+				if new_note == False:
+					break
+				else:
+					print "New note:", new_note
+					self.match(new_note)
+					print "Current location in the array:", self.current_location 
+					print "Current measure:", self.lilypond_tuples[self.current_location][0]
+					print '------------------------'
+					'''
+					print "Current number of misses:", self.num_misses
+					if self.num_misses > 2:
+						print "THIS IS VERY BAD. INSERT NATHAN'S CODE HERE"
+					print
+					'''
+					#PageOpener.openPage(int(self.lilypond_tuples[self.current_location][0]))
+		except KeyboardInterrupt:
+			pass
 	
 	
 

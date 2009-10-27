@@ -3,6 +3,6 @@
 
 import os
 
-def openPage(self, measNum):
-		pdfname = "test"+str(measNum)+".pdf"
-		os.system("open "+filename)
+def openPage(measNum):
+		pdfname = "page"+str(measNum)+".pdf"
+		os.system("open "+ pdfname)

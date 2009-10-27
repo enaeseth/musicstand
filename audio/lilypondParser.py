@@ -65,10 +65,13 @@ def parseFile(filename):
 		measure = measure + (1/float(thisNote.duration))
 		duration = thisNote.duration
 		
-	print bigNoteArray
+	#print bigNoteArray
 	return bigNoteArray
 	
-	
+def masterMethod(filename):
+	notes = parseFile(filename)
+	return notes
+
 if __name__ == '__main__':
 	filename = sys.argv[1]
 	notes = parseFile(filename)

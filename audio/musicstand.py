@@ -20,14 +20,16 @@ def main(window_size, interval):
     #def matcher(results):
         #print results
     
+    print "Starting audio analysis (dun dun dun...)"
     matcher = Matcher("page1.ly")
     monitor = Monitor(window_size)
     analyzer = Analyzer(matcher.add, window_size, interval)
-    
-    print "Starting audio analysis (dun dun dun...)"
-    matcher.run()
     analyzer.start(monitor)
+    matcher.run()
+    analyzer.stop()
+    print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH'
     
+'''    
     try:
         while True:
             sleep(10)
@@ -37,6 +39,7 @@ def main(window_size, interval):
         analyzer.stop()
     
     print "All done."
+'''
 
 if __name__ == '__main__':
     main(1024, 1024)
