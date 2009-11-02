@@ -8,7 +8,7 @@ class Analyzer(object):
     Gets samples from a monitor and finds audio frequencies in them.
     """
     
-    def __init__(self, callback, window_size, interval):
+    def __init__(self, callback, window_size, interval, fft_min_power=0):
         self.callback = callback
         self.window_size = window_size
         self.interval = interval
@@ -18,6 +18,7 @@ class Analyzer(object):
         self.analyzer_pool = None
         self.sender_pool = None
         self.running = False
+        self.min_power = fft_min_power
     
     def start(self, monitor):
         self.monitor = monitor
@@ -69,13 +70,11 @@ class Analyzer(object):
     def _analyze(self, samples):
         def perform_analysis():
             #print len(samples), samples[0]
-            results = 'test' # fft(samples) or whatever
-            #results = fft.fft(samples)
+            results = fft.fft(samples, self.min_power)
             if results:
                 self._send_results(results)
         
         self.analyzer_pool.execute(perform_analysis)
     
     def _send_results(self, results):
-    	#print 'I AM ABOUT TO CALL ADD'
         self.sender_pool.execute(lambda: self.callback(results))
