@@ -5,7 +5,7 @@ import pylab
 def fft(samples):
 	sampFreq = 44100
 	spectrogram = pylab.specgram(samples,NFFT=2048*2,hold=True,scale_by_freq=False,Fs=sampFreq)
-	powers, freqs, times  = spectrogram[0], spectrogram[1], spectrogram[2]
+	powers, freqs, times = spectrogram
 	
 	peaks = [0] * len(times)
 	
@@ -23,4 +23,3 @@ def fft(samples):
 		guess += freq
 	guess = guess/len(peaks)
 	return guess
-    
