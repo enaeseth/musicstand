@@ -5,45 +5,34 @@ An intelligent music stand.
 
 (Oh, how I wish that were really true.)
 """
+
 from __future__ import with_statement
 from monitor import Monitor
 from analyzer import Analyzer
 from time import sleep
-from Matcher import Matcher
+from matcher import Matcher
 import re
-import lilypondParser
-import PageOpener
-import mutex as mu
-
+import signal
 
 def main(window_size, interval):
-    #def matcher(results):
-        #print results
     
     print "Starting audio analysis (dun dun dun...)"
     matcher = Matcher("page1.ly", debug=True)
     monitor = Monitor(window_size)
-    analyzer = Analyzer(matcher.add, window_size, interval)
+    analyzer = Analyzer(matcher.add, window_size, interval, 100000000)
     analyzer.start(monitor)
     
-    try:
-        matcher.run()
-    except KeyboardInterrupt:
-        pass
-    analyzer.stop()
-    print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
-    
-'''    
-    try:
-        while True:
-            sleep(10)
-    except KeyboardInterrupt:
-        pass
-    finally:
+    def interrupt_handler(signum, frame):
+        # This function will be called when ^C is pressed.        
+        matcher.shutdown()
         analyzer.stop()
     
-    print "All done."
-'''
+    signal.signal(signal.SIGINT, interrupt_handler)
+    
+    matcher.run()
+    analyzer.stop()
+    
+    print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
 
 if __name__ == '__main__':
     main(1024, 1024)
