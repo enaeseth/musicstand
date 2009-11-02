@@ -9,18 +9,22 @@ from collections import deque
 from threading import Condition
 
 class Matcher(object):
-    def __init__(self, filename, debug=False):
+    def __init__(self, filename, min_octave=2, debug=False):
+        self.filename = filename
         self.incoming_notes = deque()
         self.note_available = Condition()
         self.lilypond_tuples = parse_lilypond(filename)
+        
+        self.min_octave = min_octave
         self.current_location = None
+        self.current_note = None
         self.miss_count = None
         self.debug_enabled = debug
         self.running = False
     
     def add(self, freq):
         #print 'I AM IN ADD'
-        note = [(4, "D", "flat")] # notes.freq_to_note(freq) # fo' realz.
+        note = notes.freq_to_note(freq) # fo' realz.
         
         if self.running:
             self.incoming_notes.append(note)
@@ -68,14 +72,20 @@ class Matcher(object):
         
         while self.running:
             new_note = get_next_note()
-            self.debug('New note: %s', new_note)
             if new_note is None:
                 break
             
-            self.match(new_note)
-            self.debug('Current location in array: %d', self.current_location)
-            self.debug('Current measure: %d', self.lilypond_tuples[self.current_location][0])
-            self.debug('-' * 20)
+            if new_note[0] < self.min_octave:
+                continue
+            
+            if new_note != self.current_note:
+                self.debug('New note: %s', notes.unparse_note(*new_note))
+                self.current_note = new_note
+                
+                self.match(new_note)
+                self.debug('Current location in array: %d', self.current_location)
+                self.debug('Current measure: %d', self.lilypond_tuples[self.current_location][0])
+                self.debug('-' * 20)
             
             # if self.miss_count > 2:
             #     # nathan.do_something_useful()
@@ -84,11 +94,16 @@ class Matcher(object):
     
     def shutdown(self):
         if not self.running:
-            raise RuntimeError('what exactly am I supposed to shut down?!')
+            return False
         
         self.running = False
         with self.note_available:
             self.note_available.notify() # wake up our thread if it's waiting for this
+        return True
+    
+    def __repr__(self):
+        return '%s(%r, %r)' % (type(self).__name__, self.filename,
+            self.debug_enabled)
 
 if __name__ == '__main__':
     matcher = Matcher("test.ly")
