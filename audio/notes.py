@@ -52,17 +52,17 @@ def semitone_to_note(semitone):
     
     notes = (
         ('A', None),
-        ('A', '#'),
+        ('A', 'sharp'),
         ('B', None),
         ('C', None),
-        ('C', '#'),
+        ('C', 'sharp'),
         ('D', None),
-        ('D', '#'),
+        ('D', 'sharp'),
         ('E', None),
         ('F', None),
-        ('F', '#'),
+        ('F', 'sharp'),
         ('G', None),
-        ('G', '#')
+        ('G', 'sharp')
     )
     
     if step > 2:
