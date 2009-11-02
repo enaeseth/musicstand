@@ -3,6 +3,5 @@
 
 import os
 
-def openPage(measNum):
-		pdfname = "page"+str(measNum)+".pdf"
-		os.system("open "+ pdfname)
+def open_page(measure_number):
+    os.system('open page%d.pdf' % measure_number)
