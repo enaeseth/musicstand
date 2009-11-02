@@ -79,13 +79,13 @@ class Matcher(object):
                 continue
             
             if new_note != self.current_note:
-                self.debug('New note: %s', notes.unparse_note(*new_note))
+                self.debug(notes.unparse_note(*new_note))
                 self.current_note = new_note
                 
                 self.match(new_note)
-                self.debug('Current location in array: %d', self.current_location)
-                self.debug('Current measure: %d', self.lilypond_tuples[self.current_location][0])
-                self.debug('-' * 20)
+                # self.debug('Current location in array: %d', self.current_location)
+                # self.debug('Current measure: %d', self.lilypond_tuples[self.current_location][0])
+                # self.debug('-' * 20)
             
             # if self.miss_count > 2:
             #     # nathan.do_something_useful()

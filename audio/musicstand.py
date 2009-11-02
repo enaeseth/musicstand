@@ -15,11 +15,10 @@ import re
 import signal
 
 def main(window_size, interval):
-    
     print "Starting audio analysis (dun dun dun...)"
     matcher = Matcher("page1.ly", debug=True)
     monitor = Monitor(window_size)
-    analyzer = Analyzer(matcher.add, window_size, interval, 100000000)
+    analyzer = Analyzer(matcher.add, window_size, interval, 10000000)
     analyzer.start(monitor)
     
     def interrupt_handler(signum, frame):
