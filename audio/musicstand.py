@@ -21,13 +21,17 @@ def main(window_size, interval):
         #print results
     
     print "Starting audio analysis (dun dun dun...)"
-    matcher = Matcher("page1.ly")
+    matcher = Matcher("page1.ly", debug=True)
     monitor = Monitor(window_size)
     analyzer = Analyzer(matcher.add, window_size, interval)
     analyzer.start(monitor)
-    matcher.run()
+    
+    try:
+        matcher.run()
+    except KeyboardInterrupt:
+        pass
     analyzer.stop()
-    print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH'
+    print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
     
 '''    
     try:
