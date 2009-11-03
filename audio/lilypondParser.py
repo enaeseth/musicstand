@@ -6,6 +6,7 @@
 
 import sys
 import math
+import os
 from string import punctuation
 
 class Note():
@@ -38,14 +39,20 @@ def parseFile(filename):
 	notes = []
 	bigNoteArray = []
 	file = open(filename, 'r')
+	
+	notesPos = 0
+	foundNotes = False
 	for line in file:
 		list = line.split()
 		if list:
 			if list[0][0].isalpha() or list[0] == "<":
+				foundNotes = True
 				for i in list:
 					if i[0].isalpha():
 						notes.append(i)
-						
+		if not foundNotes:
+			notesPos += 1
+			
 	file.close()
 	octavo = 4
 	measure = 1.00
@@ -65,7 +72,71 @@ def parseFile(filename):
 		measure = measure + (1/float(thisNote.duration))
 		duration = thisNote.duration
 		
-	#print bigNoteArray
+	loopNum = 1
+	start = 0
+	
+	redcolor = "\override Voice.NoteHead      #'color = #(rgb-color 1 0 .2) \n \override Voice.Stem          #'color = #(rgb-color 1 0 .2)\n"
+	blackcolor = "\override Voice.NoteHead      #'color = #(x11-color 'black) \n \override Voice.Stem          #'color = #(x11-color 'black)\n"
+
+	while loopNum <= bigNoteArray[-1][0]:
+		curPos = 0
+		newfilename = filename[:-2]+str(loopNum)+".ly"
+		outfile = open(newfilename,'w')
+		infile = open(filename,'r')
+		
+		# get the number of notes in this measure
+		inmeasure = True
+		numNotes = 0
+		posInMeasure = start
+		while inmeasure:
+			if posInMeasure >= len(bigNoteArray):
+				break
+			elif bigNoteArray[posInMeasure][0] == loopNum:
+				numNotes += 1
+				posInMeasure += 1
+			else:
+				inmeasure = False
+				
+		print numNotes
+		
+		# writes lines leading up to notes to new file
+		for line in infile:
+			if curPos < notesPos:
+				outfile.write(line)
+				
+			elif curPos == notesPos: 
+			
+				# write the notes before the notes that need to be colored
+				list = line.split()	
+				for i in range(start):
+					outfile.write(list[i] + " ")
+				
+				# write the color setting
+				outfile.write(redcolor)
+				
+				# write the colored notes
+				for i in range(start, start+numNotes):
+					outfile.write(list[i] + " ")
+				
+				# write black color
+				outfile.write(blackcolor)
+				
+				for i in range(start+numNotes,len(list)):
+					outfile.write(list[i]+ " ")
+			
+			else:
+				outfile.write(line)
+		
+			curPos += 1
+		
+		loopNum += 1
+		start += numNotes
+
+		infile.close()
+		outfile.close()
+		
+		os.system("lilypond.sh " + newfilename) 
+	
 	return bigNoteArray
 	
 def masterMethod(filename):
@@ -75,5 +146,6 @@ def masterMethod(filename):
 if __name__ == '__main__':
 	filename = sys.argv[1]
 	notes = parseFile(filename)
-	print notes
+	for item in notes:
+		print item
 	

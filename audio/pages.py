@@ -4,4 +4,4 @@
 import os
 
 def open_page(measure_number):
-    os.system('open page%d.pdf' % measure_number)
+    os.system('open page1.%d.pdf' % measure_number)
