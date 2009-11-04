@@ -13,6 +13,7 @@ from time import sleep
 from matcher import Matcher
 import re
 import signal
+import os
 
 def main(window_size, interval):
     print "Starting audio analysis (dun dun dun...)"
@@ -32,6 +33,7 @@ def main(window_size, interval):
     analyzer.stop()
     
     print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
+    os.system('open david_caruso_sunglasses.jpg')
 
 if __name__ == '__main__':
     main(1024, 1024)

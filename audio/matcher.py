@@ -25,6 +25,7 @@ class Matcher(object):
         self.incoming_notes = deque()
         self.note_available = Condition()
         self.intervals = self.create_intervals(parse_lilypond_file(filename))
+        self.measure_of_last_displayed_page = None
         print self.intervals
         
         self.min_octave = min_octave
@@ -115,7 +116,10 @@ class Matcher(object):
             # if self.miss_count > 2:
             #     # nathan.do_something_useful()
             
-            # open_page(self.lilypond_tuples[self.current_location][0])
+            this_measure = int(self.intervals[self.current_location].start)
+            if this_measure != self.measure_of_last_displayed_page:
+            	self.measure_of_last_displayed_page = this_measure
+            	open_page(this_measure)
     
     def shutdown(self):
         if not self.running:
