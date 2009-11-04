@@ -19,7 +19,6 @@ def note_to_semitone(octave, note, accidental):
     }
     
     semitone = (octave - 4) * 12 + notes[note]
-    print "(%d - 4 * 12 + %d) = %d" % (octave, notes[note], semitone)
     if accidental in ('b', '♭', 'flat'):
         semitone -= 1
     elif accidental in ('#', '♯', 'sharp'):

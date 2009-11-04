@@ -22,7 +22,7 @@ def main(window_size, interval):
     analyzer.start(monitor)
     
     def interrupt_handler(signum, frame):
-        # This function will be called when ^C is pressed.        
+        # This function will be called when ^C is pressed.
         matcher.shutdown()
         analyzer.stop()
     

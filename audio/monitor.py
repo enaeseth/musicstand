@@ -51,7 +51,17 @@ class Monitor(object):
     
     def _monitor(self):
         while self.running:
-            samples = self.stream.read(self.chunk_size)
+            try:
+                samples = self.stream.read(self.chunk_size)
+            except IOError, e:
+                print e
+                print e.errno
+                if e.errno == -9981:
+                    print >>sys.stderr, "Audio input overflow (?!?!?!?)"
+                    continue
+                else:
+                    raise
+            
             with self.access:
                 count = len(samples) / 2
                 self.buffer.extend(struct.unpack('%dh' % count, samples))

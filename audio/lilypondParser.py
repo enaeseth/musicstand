@@ -33,7 +33,7 @@ class Note():
 				self.octave -= 1
 				
 	def printNote(self,bigNoteArray):
-		bigNoteArray.append([self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]])
+		bigNoteArray.append((self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]))
 		
 def parseFile(filename):
 	notes = []
@@ -49,7 +49,7 @@ def parseFile(filename):
 				foundNotes = True
 				for i in list:
 					if i[0].isalpha():
-						notes.append(i)
+						notes.append(i.upper())
 		if not foundNotes:
 			notesPos += 1
 			
@@ -75,8 +75,8 @@ def parseFile(filename):
 	loopNum = 1
 	start = 0
 	
-	redcolor = "\override Voice.NoteHead      #'color = #(rgb-color 1 0 .2) \n \override Voice.Stem          #'color = #(rgb-color 1 0 .2)\n"
-	blackcolor = "\override Voice.NoteHead      #'color = #(x11-color 'black) \n \override Voice.Stem          #'color = #(x11-color 'black)\n"
+	redcolor = "\override Voice.NoteHead	  #'color = #(rgb-color 1 0 .2) \n \override Voice.Stem			 #'color = #(rgb-color 1 0 .2)\n"
+	blackcolor = "\override Voice.NoteHead		#'color = #(x11-color 'black) \n \override Voice.Stem		   #'color = #(x11-color 'black)\n"
 
 	while loopNum <= bigNoteArray[-1][0]:
 		curPos = 0
@@ -107,7 +107,7 @@ def parseFile(filename):
 			elif curPos == notesPos: 
 			
 				# write the notes before the notes that need to be colored
-				list = line.split()	
+				list = line.split() 
 				for i in range(start):
 					outfile.write(list[i] + " ")
 				

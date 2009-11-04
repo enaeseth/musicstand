@@ -3,17 +3,29 @@ from __future__ import with_statement
 import sys
 import re
 import notes
-from lilypondParser import parseFile as parse_lilypond
+from lilypondParser import parseFile as parse_lilypond_file
 from pages import open_page
 from collections import deque
 from threading import Condition
 
 class Matcher(object):
+    class Interval(object):
+        """A span of time with the notes being played during that span."""
+        def __init__(self, start, end, notes=None):
+            self.start = start
+            self.end = end
+            self.notes = notes or []
+        
+        def __repr__(self):
+            return '%s(%r, %r, %r)' % (type(self).__name__, self.start,
+                self.end, self.notes)
+    
     def __init__(self, filename, min_octave=2, debug=False):
         self.filename = filename
         self.incoming_notes = deque()
         self.note_available = Condition()
-        self.lilypond_tuples = parse_lilypond(filename)
+        self.intervals = self.create_intervals(parse_lilypond_file(filename))
+        print self.intervals
         
         self.min_octave = min_octave
         self.current_location = None
@@ -42,13 +54,21 @@ class Matcher(object):
         goes down by 1.)
         """
         
-        if new_note == self.lilypond_tuples[self.current_location][3]:
-            self.miss_count = max(self.miss_count - 1, 0)
-        elif new_note == self.lilypond_tuples[self.current_location+1][3]:
+        def matches(position):
+            letters = [n[1] for n in self.intervals[position].notes]
+            self.debug('%s =?= %s', new_note[1], ''.join(letters))
+            return new_note[1] in letters
+        
+        if matches(self.current_location + 1):
+            self.debug("MOVING FORWARD LIKE A SCREAMING NARWHAL")
             self.current_location += 1
+            self.miss_count = max(self.miss_count - 1, 0)
+        elif matches(self.current_location):
             self.miss_count = max(self.miss_count - 1, 0)
         else:
             self.miss_count += 1
+        
+        print 'miss count is now %d' % self.miss_count
     
     def debug(self, message, *args):
         if self.debug_enabled:
@@ -79,10 +99,15 @@ class Matcher(object):
                 continue
             
             if new_note != self.current_note:
-                self.debug(notes.unparse_note(*new_note))
+                # self.debug(notes.unparse_note(*new_note))
                 self.current_note = new_note
                 
                 self.match(new_note)
+                
+                if self.current_location >= (len(self.intervals) - 1):
+                    print "Done with the piece!"
+                    self.running = False
+                
                 # self.debug('Current location in array: %d', self.current_location)
                 # self.debug('Current measure: %d', self.lilypond_tuples[self.current_location][0])
                 # self.debug('-' * 20)
@@ -100,6 +125,36 @@ class Matcher(object):
         with self.note_available:
             self.note_available.notify() # wake up our thread if it's waiting for this
         return True
+    
+    def create_intervals(self, notes):
+        times = set()
+        
+        for note in notes:
+            start_time = note[0] + note[1]
+            end_time = start_time + (1.0 / note[2])
+            times.add(start_time)
+            times.add(end_time)
+        
+        def pair(sequence):
+            last = None
+            
+            for item in sequence:
+                if last is not None:
+                    yield (last, item)
+                last = item
+        
+        intervals = [self.Interval(start, end) for start, end in pair(sorted(times))]
+        
+        # warning: shit be O(n*k), yo. fix up when we care.
+        for note in notes:
+            start_time = note[0] + note[1]
+            end_time = start_time + (1.0 / note[2])
+            
+            for interval in intervals:
+                if start_time < interval.end and interval.start < end_time:
+                    interval.notes.extend(note[3])
+        
+        return intervals
     
     def __repr__(self):
         return '%s(%r, %r)' % (type(self).__name__, self.filename,
