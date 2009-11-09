@@ -66,6 +66,7 @@ class Analyzer(object):
         self.monitor.stop()
         self.analyzer_pool.shutdown()
         self.sender_pool.shutdown()
+        print "Exiting analyzer."
     
     def _analyze(self, samples):
         def perform_analysis():

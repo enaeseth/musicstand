@@ -6,6 +6,7 @@ from pyaudio import PyAudio, paInt16
 from threading import Thread, Lock, Condition
 from collections import deque
 import struct
+import sys
 
 class Monitor(object):
     """
@@ -48,15 +49,14 @@ class Monitor(object):
         self.stream.close()
         self.stream = None
         self.pya.terminate()
+        print "Exiting monitor."
     
     def _monitor(self):
         while self.running:
             try:
                 samples = self.stream.read(self.chunk_size)
             except IOError, e:
-                print e
-                print e.errno
-                if e.errno == -9981:
+                if e.errno == -9981 or e.errno == 'Input overflowed':
                     print >>sys.stderr, "Audio input overflow (?!?!?!?)"
                     continue
                 else:

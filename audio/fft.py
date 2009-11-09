@@ -4,26 +4,42 @@ import pylab
 
 from collections import deque
 
-def fft(samples, min_power=0):
-    sampFreq = 44100
-    spectrogram = pylab.specgram(samples,NFFT=2048*2,hold=True,scale_by_freq=False,Fs=sampFreq)
+def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
+    spectrogram = pylab.specgram(samples, NFFT=2048*2, hold=True,
+        scale_by_freq=False, Fs=sample_rate)
     powers, freqs, times = spectrogram[:3]
     
-    peaks = deque()
-    
-    #loop for each time interval
-    for t in xrange(len(times)):
-        best = None
-        best_power = 0
+    accepted_frequencies = {}
+    greatest_power = 0
+    last_freq = None
+    last_power = 0
+    increasing = True
+    for i, frequency in enumerate(freqs):
+        peak_power = 0
         
-        #loop over each bin, if the power > the best so far, record it
-        for f in xrange(len(freqs)):
-            if powers[f][t] > max(best_power, min_power):
-                best = f
-                best_power = powers[best][t]
-                # print best_power
-        
-        if best is not None:
-            peaks.append(freqs[best])
+        for power in powers[i]:
+            if power > max(peak_power, min_power):
+                peak_power = power
+                greatest_power = max(greatest_power, power)
+
+        if peak_power > 0:
+            # print "%.02f => %d" % (frequency, int(peak_power)),
+            
+            if increasing and peak_power < last_power:
+                increasing = False
+                accepted_frequencies[last_freq] = last_power
+                # print 'V'
+            elif not increasing and peak_power > last_power:
+                increasing = True
+                # print '^'
+            else:
+                # print
+                pass
+            
+            last_power = peak_power
+            last_freq = frequency
     
-    return (sum(peaks) / len(peaks)) if len(peaks) > 0 else None
+    cutoff = greatest_power * inclusion
+    return [freq for freq, power in
+        sorted(accepted_frequencies.iteritems(), key=lambda (f, p): -p)
+        if power >= cutoff]

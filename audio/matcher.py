@@ -26,7 +26,6 @@ class Matcher(object):
         self.note_available = Condition()
         self.intervals = self.create_intervals(parse_lilypond_file(filename))
         self.measure_of_last_displayed_page = None
-        print self.intervals
         
         self.min_octave = min_octave
         self.current_location = None
@@ -118,16 +117,17 @@ class Matcher(object):
             
             this_measure = int(self.intervals[self.current_location].start)
             if this_measure != self.measure_of_last_displayed_page:
-            	self.measure_of_last_displayed_page = this_measure
-            	open_page(this_measure)
+                self.measure_of_last_displayed_page = this_measure
+                open_page(this_measure)
+        print "Exiting matcher."
     
     def shutdown(self):
         if not self.running:
             return False
         
-        self.running = False
         with self.note_available:
-            self.note_available.notify() # wake up our thread if it's waiting for this
+            self.running = False
+            self.note_available.notifyAll() # wake up our thread if it's waiting for this
         return True
     
     def create_intervals(self, notes):
