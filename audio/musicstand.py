@@ -35,6 +35,7 @@ def main(window_size, interval):
     
     print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
     # os.system('open david_caruso_sunglasses.jpg')
+    os.system('open -a "/Applications/QuickTime Player.app" yeaaaaaaaah.mp3')
 
 if __name__ == '__main__':
     main(4096, 1024)
