@@ -16,7 +16,7 @@ lilypondPDFoutput="${directory}"$filename".pdf"
 #key="1"
 
 #do
-~/Desktop/LilyPond.app/Contents/Resources/bin/lilypond -o "${directory}/${filename}" $1
+./LilyPond.app/Contents/Resources/bin/lilypond -o "${directory}/${filename}" $1
 #wait
 #open "${lilypondPDFoutput}"
 #open "${lilypondMIDIoutput}"
