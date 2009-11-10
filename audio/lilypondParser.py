@@ -10,13 +10,13 @@ import os
 from string import punctuation
 
 class Note():
-	def __init__(self, octavo, meas, dur, num):
+	def __init__(self, meas, dur, num):
 		self.pitch = 0
 		self.beatnumber = num
 		self.measure = meas
 		self.duration = dur
 		self.accidental = None
-		self.octave = octavo
+		self.octave = 0
 		
 	def parseNote(self, noteData):
 		self.pitch = noteData[0]
@@ -33,23 +33,23 @@ class Note():
 				self.octave -= 1
 				
 	def printNote(self,bigNoteArray):
-		bigNoteArray.append((self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]))
+		bigNoteArray.append([self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]])
 		
 def parseFile(filename):
 	notes = []
 	bigNoteArray = []
 	file = open(filename, 'r')
-	
 	notesPos = 0
 	foundNotes = False
 	for line in file:
 		list = line.split()
 		if list:
-			if list[0][0].isalpha() or list[0] == "<":
+			if list[0][0].isalpha() or list[0][0] == "<" or list[0][0] == ">":
 				foundNotes = True
 				for i in list:
-					if i[0].isalpha():
+					if i[0].isalpha() or i[0] == "<" or i[0] == ">":
 						notes.append(i.upper())
+						
 		if not foundNotes:
 			notesPos += 1
 			
@@ -58,19 +58,32 @@ def parseFile(filename):
 	measure = 1.00
 	duration = 4.0
 	number = 1
+	chord = False
 	for note in notes:
-		measure = str(measure)
-		parts = measure.split('.')
-		beatnumber = "."+parts[1]
-		measure = float(measure)
-		measureNum = parts[0]
-		thisNote = Note(octavo, float(measureNum), float(duration), float(beatnumber))
-		thisNote.parseNote(note)
-		thisNote.printNote(bigNoteArray)
-		number += 1
-		octavo = thisNote.octave
-		measure = measure + (1/float(thisNote.duration))
-		duration = thisNote.duration
+		if note == "<":
+			chord = True
+		elif note == ">":
+			chord = False
+			measure = measure + (1/float(duration))
+		else:
+			measure = str(measure)
+			parts = measure.split('.')
+			beatnumber = "."+parts[1]
+			measure = float(measure)
+			measureNum = parts[0]
+			thisNote = Note(float(measureNum), float(duration), float(beatnumber))
+			thisNote.parseNote(note)
+			number += 1
+			if len(bigNoteArray) >= 1:
+				octavo = octavo + thisNote.octave + findOctave(bigNoteArray[-1][3][0][1],thisNote.pitch)
+				thisNote.octave = octavo
+			else:
+				octavo = octavo + thisNote.octave
+				thisNote.octave = octavo
+			thisNote.printNote(bigNoteArray)
+			if not chord:
+				measure = measure + (1/float(thisNote.duration))
+			duration = thisNote.duration
 		
 	loopNum = 1
 	start = 0
@@ -97,7 +110,6 @@ def parseFile(filename):
 			else:
 				inmeasure = False
 				
-		print numNotes
 		
 		# writes lines leading up to notes to new file
 		for line in infile:
@@ -108,22 +120,38 @@ def parseFile(filename):
 			
 				# write the notes before the notes that need to be colored
 				list = line.split() 
-				for i in range(start):
-					outfile.write(list[i] + " ")
+				i = 0
+				
+				if start == 0:
+					outfile.write(redcolor)
+					
+				else:	
+					while i < start:
+						outfile.write(list[i] + " ")
+						if not list[i][0].isalpha():
+							print list[i]
+							numNotes += 1
+						i += 1
+
 				
 				# write the color setting
 				outfile.write(redcolor)
 				
 				# write the colored notes
-				for i in range(start, start+numNotes):
+				while i < start+numNotes:
 					outfile.write(list[i] + " ")
-				
+					if not list[i][0].isalpha():
+						print list[i]
+						numNotes += 1
+					i += 1
+
+					
 				# write black color
 				outfile.write(blackcolor)
 				
 				for i in range(start+numNotes,len(list)):
 					outfile.write(list[i]+ " ")
-			
+
 			else:
 				outfile.write(line)
 		
@@ -135,9 +163,25 @@ def parseFile(filename):
 		infile.close()
 		outfile.close()
 		
-		os.system("lilypond.sh " + newfilename) 
+		os.system("./lilypond.sh " + newfilename) 
 	
 	return bigNoteArray
+	
+def findOctave(prevnote, curnote):
+	curval = ord(curnote)
+	prevval = ord(prevnote)
+	if curval > prevval:
+		dif = curval - prevval
+		if dif > 3:
+			return -1
+		else:
+			return 0
+	else:
+		dif = prevval - curval
+		if dif > 3:
+			return 1
+		else:
+			return 0
 	
 def masterMethod(filename):
 	notes = parseFile(filename)
