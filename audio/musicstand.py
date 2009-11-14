@@ -18,10 +18,13 @@ import os
 import notes
 
 def main(window_size, interval):
+    def dummy(results):
+        print ', '.join('%s (%.1f)' % (notes.unparse_note(*notes.freq_to_note(f)), f) for f in results)
+    
     print "Starting audio analysis (dun dun dun...)"
-    matcher = Matcher("page1.ly", debug=True)
+    matcher = Matcher("sarias.ly", debug=True)
     monitor = Monitor(min(window_size, 1024))
-    analyzer = Analyzer(matcher.add, window_size, interval, 40000000)
+    analyzer = Analyzer(dummy, window_size, interval, 40000000)
     analyzer.start(monitor)
     
     Thread(name='Matcher', target=matcher.run).start()
@@ -34,8 +37,8 @@ def main(window_size, interval):
             analyzer.stop()
     
     print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
-    # os.system('open david_caruso_sunglasses.jpg')
-    os.system('open -a "/Applications/QuickTime Player.app" yeaaaaaaaah.mp3')
+    os.system('open david_caruso_sunglasses.jpg')
+    # os.system('open -a "/Applications/QuickTime Player.app" yeaaaaaaaah.mp3')
 
 if __name__ == '__main__':
     main(4096, 1024)

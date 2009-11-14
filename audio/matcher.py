@@ -34,9 +34,10 @@ class Matcher(object):
         self.debug_enabled = debug
         self.running = False
     
-    def add(self, freq):
+    def add(self, freqs):
         #print 'I AM IN ADD'
-        note = notes.freq_to_note(freq) # fo' realz.
+        note_list = map(notes.freq_to_note, freqs)
+        note = note_list[0] # fuck you, chords
         
         if self.running:
             self.incoming_notes.append(note)
@@ -55,10 +56,19 @@ class Matcher(object):
         """
         
         def matches(position):
-            letters = [n[1] for n in self.intervals[position].notes]
-            self.debug('%s =?= %s', new_note[1], ''.join(letters))
-            return new_note[1] in letters
+            try:
+                letters = [n[1] for n in self.intervals[position].notes]
+                self.debug('%s =?= %s', new_note[1], ''.join(letters))
+                return new_note[1] in letters
+            except IndexError:
+                return False
         
+        for i in range(1, min(self.miss_count + 1, 3)) + [0]:
+            if matches(self.current_location + i):
+                if i > 0:
+                    self.debug("onward, %d notes" % i)
+                    self.current_location += i
+                    self.miss_count = max(self.miss_count - i, 0)
         if matches(self.current_location + 1):
             self.debug("MOVING FORWARD LIKE A SCREAMING NARWHAL")
             self.current_location += 1

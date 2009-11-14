@@ -1,6 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
 import pylab
+import notes
 
 from collections import deque
 
@@ -12,6 +13,7 @@ def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
     accepted_frequencies = {}
     greatest_power = 0
     last_freq = None
+    last_bucket = 0
     last_power = 0
     increasing = True
     for i, frequency in enumerate(freqs):
@@ -28,6 +30,7 @@ def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
             if increasing and peak_power < last_power:
                 increasing = False
                 accepted_frequencies[last_freq] = last_power
+                # print "%.01f (%r) =>\t%d" % (last_freq, notes.freq_to_semitone(last_freq)[0], int(last_power))
                 # print 'V'
             elif not increasing and peak_power > last_power:
                 increasing = True
@@ -38,6 +41,7 @@ def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
             
             last_power = peak_power
             last_freq = frequency
+            last_bucket = i
     
     cutoff = greatest_power * inclusion
     return [freq for freq, power in
