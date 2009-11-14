@@ -28,6 +28,7 @@ def main(window_size, interval):
     analyzer.start(monitor)
     
     Thread(name='Matcher', target=matcher.run).start()
+    
     while True:
         try:
             sleep(1)
@@ -35,9 +36,10 @@ def main(window_size, interval):
             print "got interrupt"
             matcher.shutdown()
             analyzer.stop()
+            break
     
     print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
-    os.system('open david_caruso_sunglasses.jpg')
+    # os.system('open david_caruso_sunglasses.jpg')
     # os.system('open -a "/Applications/QuickTime Player.app" yeaaaaaaaah.mp3')
 
 if __name__ == '__main__':
