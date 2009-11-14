@@ -151,7 +151,6 @@ def parseFile(filename):
 				
 				for i in range(start+numNotes,len(list)):
 					outfile.write(list[i]+ " ")
-
 			else:
 				outfile.write(line)
 		
