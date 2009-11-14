@@ -1,8 +1,3 @@
-\header
-{
-    title = "Imperial Death March"
-}
-
 \relative c''
 {
     g4 g g ees8 bes' g4 ees8 bes' g2 d'4 d d ees8 bes fis4 ees8 bes' g2
