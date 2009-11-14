@@ -4,10 +4,17 @@
 # Usage: python lilypondParser.py filetoparse.ly
 # By Emily and Ben, 10/3/09
 
+from __future__ import with_statement
+
 import sys
 import math
 import os
 from string import punctuation
+
+try:
+	from hashlib import sha1
+except ImportError:
+	from sha import new as sha1
 
 class Note():
 	def __init__(self, meas, dur, num):
@@ -34,7 +41,23 @@ class Note():
 				
 	def printNote(self,bigNoteArray):
 		bigNoteArray.append([self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]])
-		
+
+def get_cache_dir(score_filename):
+	digester = sha1()
+	with open(score_filename, 'r') as score_file:
+		for line in score_file:
+			digester.update(line)
+	
+	osx_path = os.path.expanduser('~/Library/Application Support')
+	if os.path.exists(osx_path):
+		cache_root = os.path.join(osx_path, 'Music Stand')
+	else:
+		cache_root = os.path.expanduser('~/.musicstand')
+	
+	if not os.path.exists(cache_root):
+		os.makedirs(cache_root)
+	return os.path.join(cache_root, digester.hexdigest())
+
 def parseFile(filename):
 	notes = []
 	bigNoteArray = []
@@ -84,17 +107,26 @@ def parseFile(filename):
 			if not chord:
 				measure = measure + (1/float(thisNote.duration))
 			duration = thisNote.duration
-		
+	
+	cache_dir = get_cache_dir(filename)
+	if os.path.exists(cache_dir):
+		# already generated these PDF's
+		return (bigNoteArray, cache_dir)
+	else:
+		os.mkdir(cache_dir)
+	
 	loopNum = 1
 	start = 0
 	
 	redcolor = "\override Voice.NoteHead	  #'color = #(rgb-color 1 0 .2) \n \override Voice.Stem			 #'color = #(rgb-color 1 0 .2)\n"
 	blackcolor = "\override Voice.NoteHead		#'color = #(x11-color 'black) \n \override Voice.Stem		   #'color = #(x11-color 'black)\n"
 
+	lilypond_path = os.path.join(os.path.dirname(__file__), 'lilypond.sh')
 	while loopNum <= bigNoteArray[-1][0]:
 		curPos = 0
 		newfilename = filename[:-2]+str(loopNum)+".ly"
-		outfile = open(newfilename,'w')
+		new_path = os.path.join(cache_dir, os.path.basename(newfilename))
+		outfile = open(new_path,'w')
 		infile = open(filename,'r')
 		
 		# get the number of notes in this measure
@@ -162,9 +194,9 @@ def parseFile(filename):
 		infile.close()
 		outfile.close()
 		
-		os.system("./lilypond.sh " + newfilename) 
+		os.system('"%s" "%s"' % (lilypond_path, new_path))
 	
-	return bigNoteArray
+	return (bigNoteArray, cache_dir)
 	
 def findOctave(prevnote, curnote):
 	curval = ord(curnote)

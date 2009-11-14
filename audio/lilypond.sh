@@ -2,7 +2,7 @@
 clear
 
 filename=$(basename "${1##*/}" .ly)
-directory=$PWD"/"
+directory=`dirname "$1"`
 #echo "${directory}"$filename".pdf"
 lilypondPDFoutput="${directory}"$filename".pdf"
 #lilypondMIDIoutput="${directory}"/$filename".midi"
@@ -16,7 +16,8 @@ lilypondPDFoutput="${directory}"$filename".pdf"
 #key="1"
 
 #do
-./LilyPond.app/Contents/Resources/bin/lilypond -o "${directory}/${filename}" $1
+echo "${directory}/${filename}"
+./LilyPond.app/Contents/Resources/bin/lilypond -o "${directory}/${filename}" "$1"
 #wait
 #open "${lilypondPDFoutput}"
 #open "${lilypondMIDIoutput}"

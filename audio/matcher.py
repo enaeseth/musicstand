@@ -24,7 +24,9 @@ class Matcher(object):
         self.filename = filename
         self.incoming_notes = deque()
         self.note_available = Condition()
-        self.intervals = self.create_intervals(parse_lilypond_file(filename))
+        notes, cache_dir = parse_lilypond_file(filename)
+        self.intervals = self.create_intervals(notes)
+        self.cache_dir = cache_dir
         self.measure_of_last_displayed_page = None
         
         self.min_octave = min_octave
@@ -128,7 +130,7 @@ class Matcher(object):
             this_measure = int(self.intervals[self.current_location].start)
             if this_measure != self.measure_of_last_displayed_page:
                 self.measure_of_last_displayed_page = this_measure
-                open_page(this_measure)
+                open_page(self.filename, this_measure, self.cache_dir)
         print "Exiting matcher."
     
     def shutdown(self):

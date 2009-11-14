@@ -24,7 +24,7 @@ def main(window_size, interval):
     print "Starting audio analysis (dun dun dun...)"
     matcher = Matcher("sarias.ly", debug=True)
     monitor = Monitor(min(window_size, 1024))
-    analyzer = Analyzer(dummy, window_size, interval, 40000000)
+    analyzer = Analyzer(matcher.add, window_size, interval, 40000000)
     analyzer.start(monitor)
     
     Thread(name='Matcher', target=matcher.run).start()
