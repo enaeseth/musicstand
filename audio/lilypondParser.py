@@ -19,19 +19,19 @@ except ImportError:
 class Note():
 	def __init__(self, meas, dur, num):
 		self.pitch = 0
-		self.beatnumber = num
+		self.beat_number = num
 		self.measure = meas
 		self.duration = dur
 		self.accidental = None
 		self.octave = 0
 		
-	def parseNote(self, noteData):
-		self.pitch = noteData[0]
-		if 'is' in noteData:
+	def parse_note(self, note_data):
+		self.pitch = note_data[0]
+		if 'is' in note_data:
 			self.accidental = 'sharp'
-		if 'es' in noteData:
+		if 'es' in note_data:
 			self.accidental = 'flat'
-		for char in noteData:
+		for char in note_data:
 			if char.isdigit():
 				self.duration = float(char)
 			elif char == '\'':
@@ -39,8 +39,8 @@ class Note():
 			elif char == ',':
 				self.octave -= 1
 				
-	def printNote(self,bigNoteArray):
-		bigNoteArray.append([self.measure, self.beatnumber, self.duration, [(self.octave, self.pitch, self.accidental)]])
+	def print_note(self,big_note_array):
+		big_note_array.append([self.measure, self.beat_number, self.duration, [(self.octave, self.pitch, self.accidental)]])
 
 def get_cache_dir(score_filename):
 	digester = sha1()
@@ -58,23 +58,23 @@ def get_cache_dir(score_filename):
 		os.makedirs(cache_root)
 	return os.path.join(cache_root, digester.hexdigest())
 
-def parseFile(filename):
+def parse_file(filename):
 	notes = []
-	bigNoteArray = []
+	big_note_array = []
 	file = open(filename, 'r')
-	notesPos = 0
-	foundNotes = False
+	notes_pos = 0
+	found_notes = False
 	for line in file:
 		list = line.split()
 		if list:
 			if list[0][0].isalpha() or list[0][0] == "<" or list[0][0] == ">":
-				foundNotes = True
+				found_notes = True
 				for i in list:
 					if i[0].isalpha() or i[0] == "<" or i[0] == ">":
 						notes.append(i.upper())
 						
-		if not foundNotes:
-			notesPos += 1
+		if not found_notes:
+			notes_pos += 1
 			
 	file.close()
 	octavo = 4
@@ -91,64 +91,64 @@ def parseFile(filename):
 		else:
 			measure = str(measure)
 			parts = measure.split('.')
-			beatnumber = "."+parts[1]
+			beat_number = "."+parts[1]
 			measure = float(measure)
-			measureNum = parts[0]
-			thisNote = Note(float(measureNum), float(duration), float(beatnumber))
-			thisNote.parseNote(note)
+			measure_num = parts[0]
+			this_note = Note(float(measure_num), float(duration), float(beat_number))
+			this_note.parse_note(note)
 			number += 1
-			if len(bigNoteArray) >= 1:
-				octavo = octavo + thisNote.octave + findOctave(bigNoteArray[-1][3][0][1],thisNote.pitch)
-				thisNote.octave = octavo
+			if len(big_note_array) >= 1:
+				octavo = octavo + this_note.octave + find_octave(big_note_array[-1][3][0][1],this_note.pitch)
+				this_note.octave = octavo
 			else:
-				octavo = octavo + thisNote.octave
-				thisNote.octave = octavo
-			thisNote.printNote(bigNoteArray)
+				octavo = octavo + this_note.octave
+				this_note.octave = octavo
+			this_note.print_note(big_note_array)
 			if not chord:
-				measure = measure + (1/float(thisNote.duration))
-			duration = thisNote.duration
+				measure = measure + (1/float(this_note.duration))
+			duration = this_note.duration
 	
 	cache_dir = get_cache_dir(filename)
 	if os.path.exists(cache_dir):
 		# already generated these PDF's
-		return (bigNoteArray, cache_dir)
+		return (big_note_array, cache_dir)
 	else:
 		os.mkdir(cache_dir)
 	
-	loopNum = 1
+	loop_num = 1
 	start = 0
 	
 	redcolor = "\override Voice.NoteHead	  #'color = #(rgb-color 1 0 .2) \n \override Voice.Stem			 #'color = #(rgb-color 1 0 .2)\n"
 	blackcolor = "\override Voice.NoteHead		#'color = #(x11-color 'black) \n \override Voice.Stem		   #'color = #(x11-color 'black)\n"
 
 	lilypond_path = os.path.join(os.path.dirname(__file__), 'lilypond.sh')
-	while loopNum <= bigNoteArray[-1][0]:
-		curPos = 0
-		newfilename = filename[:-2]+str(loopNum)+".ly"
+	while loop_num <= big_note_array[-1][0]:
+		cur_pos = 0
+		newfilename = filename[:-2]+str(loop_num)+".ly"
 		new_path = os.path.join(cache_dir, os.path.basename(newfilename))
 		outfile = open(new_path,'w')
 		infile = open(filename,'r')
 		
 		# get the number of notes in this measure
 		inmeasure = True
-		numNotes = 0
-		posInMeasure = start
+		num_notes = 0
+		pos_in_measure = start
 		while inmeasure:
-			if posInMeasure >= len(bigNoteArray):
+			if pos_in_measure >= len(big_note_array):
 				break
-			elif bigNoteArray[posInMeasure][0] == loopNum:
-				numNotes += 1
-				posInMeasure += 1
+			elif big_note_array[pos_in_measure][0] == loop_num:
+				num_notes += 1
+				pos_in_measure += 1
 			else:
 				inmeasure = False
 				
 		
 		# writes lines leading up to notes to new file
 		for line in infile:
-			if curPos < notesPos:
+			if cur_pos < notes_pos:
 				outfile.write(line)
 				
-			elif curPos == notesPos: 
+			elif cur_pos == notes_pos: 
 			
 				# write the notes before the notes that need to be colored
 				list = line.split() 
@@ -162,7 +162,7 @@ def parseFile(filename):
 						outfile.write(list[i] + " ")
 						if not list[i][0].isalpha():
 							print list[i]
-							numNotes += 1
+							num_notes += 1
 						i += 1
 
 				
@@ -170,35 +170,36 @@ def parseFile(filename):
 				outfile.write(redcolor)
 				
 				# write the colored notes
-				while i < start+numNotes:
+				while i < start+num_notes:
 					outfile.write(list[i] + " ")
 					if not list[i][0].isalpha():
 						print list[i]
-						numNotes += 1
+						num_notes += 1
 					i += 1
 
 					
 				# write black color
 				outfile.write(blackcolor)
 				
-				for i in range(start+numNotes,len(list)):
+				# write the rest of the notes
+				for i in range(start+num_notes,len(list)):
 					outfile.write(list[i]+ " ")
 			else:
 				outfile.write(line)
 		
-			curPos += 1
+			cur_pos += 1
 		
-		loopNum += 1
-		start += numNotes
+		loop_num += 1
+		start += num_notes
 
 		infile.close()
 		outfile.close()
 		
 		os.system('"%s" "%s"' % (lilypond_path, new_path))
 	
-	return (bigNoteArray, cache_dir)
+	return (big_note_array, cache_dir)
 	
-def findOctave(prevnote, curnote):
+def find_octave(prevnote, curnote):
 	curval = ord(curnote)
 	prevval = ord(prevnote)
 	if curval > prevval:
@@ -215,12 +216,12 @@ def findOctave(prevnote, curnote):
 			return 0
 	
 def masterMethod(filename):
-	notes = parseFile(filename)
+	notes = parse_file(filename)
 	return notes
 
 if __name__ == '__main__':
 	filename = sys.argv[1]
-	notes = parseFile(filename)
+	notes = parse_file(filename)
 	for item in notes:
 		print item
 	
