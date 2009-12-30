@@ -59,8 +59,11 @@ def get_algorithm(name):
         module = __import__('mstand.match.%s' % name)
         for name in dir(module):
             member = getattr(module, name)
-            if member is not Algorithm and issubclass(member, Algorithm):
-                return member
+            try:
+                if member is not Algorithm and issubclass(member, Algorithm):
+                    return member
+            except TypeError:
+                pass
         raise ValueError('module mstand.match.%s contains no Algorithm '
             'subclasses' % name)
     except ImportError:
