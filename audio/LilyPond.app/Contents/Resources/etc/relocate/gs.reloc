@@ -1,7 +1,0 @@
-
-
-prependdir GS_FONTPATH=$INSTALLER_PREFIX/share/ghostscript/8.57/fonts
-prependdir GS_FONTPATH=$INSTALLER_PREFIX/share/gs/fonts
-prependdir GS_LIB=$INSTALLER_PREFIX/share/ghostscript/8.57/Resource
-prependdir GS_LIB=$INSTALLER_PREFIX/share/ghostscript/8.57/lib
-
