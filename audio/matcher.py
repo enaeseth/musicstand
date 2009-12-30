@@ -5,10 +5,13 @@ import re
 import notes
 from lilypondParser import parseFile as parse_lilypond_file
 from pages import open_page
-from collections import deque
-from threading import Condition
+from Queue import Queue, Empty
 
 class Matcher(object):
+    # a special value that gets inserted into the note queue upon shutdown;
+    # when the matcher loop encounters it, it will exit
+    SHUTDOWN_SENTINEL = object()
+    
     class Interval(object):
         """A span of time with the notes being played during that span."""
         def __init__(self, start, end, notes=None):
@@ -22,8 +25,7 @@ class Matcher(object):
     
     def __init__(self, filename, min_octave=2, debug=False):
         self.filename = filename
-        self.incoming_notes = deque()
-        self.note_available = Condition()
+        self.incoming_notes = None # this gets created in .run()
         notes, cache_dir = parse_lilypond_file(filename)
         self.intervals = self.create_intervals(notes)
         self.cache_dir = cache_dir
@@ -42,9 +44,7 @@ class Matcher(object):
         note = note_list[0] # fuck you, chords
         
         if self.running:
-            self.incoming_notes.append(note)
-            with self.note_available:
-                self.note_available.notify()
+            self.incoming_notes.put(note)
     
     def match(self, new_note):
         """
@@ -88,23 +88,13 @@ class Matcher(object):
     
     def run(self):
         self.running = True
-        self.incoming_notes.clear()
+        self.incoming_notes = Queue(0)
         self.current_location = 0
         self.miss_count = 0
         
-        def get_next_note():
-            try:
-                return self.incoming_notes.popleft()
-            except IndexError:
-                # no notes are available; wait until we're told that one is ready
-                with self.note_available:
-                    self.note_available.wait()
-                
-                return get_next_note() if self.running else None
-        
         while self.running:
-            new_note = get_next_note()
-            if new_note is None:
+            new_note = self.queue.get()
+            if new_note is self.SHUTDOWN_SENTINEL:
                 break
             
             if new_note[0] < self.min_octave:
@@ -137,9 +127,7 @@ class Matcher(object):
         if not self.running:
             return False
         
-        with self.note_available:
-            self.running = False
-            self.note_available.notifyAll() # wake up our thread if it's waiting for this
+        self.incoming_notes.put(self.SHUTDOWN_SENTINEL)
         return True
     
     def create_intervals(self, notes):
