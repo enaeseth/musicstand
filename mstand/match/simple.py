@@ -13,6 +13,7 @@ class SimpleAlgorithm(Algorithm):
     """
     
     def __init__(self, min_octave=2):
+        super(SimpleAlgorithm, self).__init__()
         self.min_octave = min_octave
     
     def start_piece(self):
