@@ -10,7 +10,7 @@ import sys
 import re
 
 from Queue import Queue, Empty
-from threading import Thread
+from threading import Thread, Event
 
 class Interval(object):
     """
@@ -70,7 +70,8 @@ class Matcher(object):
         """
         
         if self.running:
-            self.incoming_notes.put(algorithm.filter_frequencies(frequencies))
+            notes = self.algorithm.filter_frequencies(frequencies)
+            self.incoming_notes.put(notes)
     
     def debug(self, message, *args):
         if self.debug_enabled:
@@ -81,8 +82,16 @@ class Matcher(object):
         Starts a new thread for the matcher, and runs it in the thread.
         """
         
-        thread = Thread(name=name, target=self.run)
+        started = Event()
+        def run_matcher():
+            self.running = True
+            started.set()
+            self.run()
+        
+        thread = Thread(name=name, target=run_matcher)
         thread.start()
+        
+        started.wait() # wait for the thread to actually start
         return thread
     
     def run(self):
@@ -95,6 +104,7 @@ class Matcher(object):
         self.current_location = 0
         
         while self.running:
+            print "."
             new_notes = self.incoming_notes.get()
             if new_notes is self.SHUTDOWN_SENTINEL:
                 # we're being told to stop
@@ -107,6 +117,7 @@ class Matcher(object):
                 self.current_location = location
                 
                 self.change_listener(self)
+            print self.running
     
     def shutdown(self):
         """
@@ -115,6 +126,7 @@ class Matcher(object):
         if not self.running:
             return False
         
+        print >>sys.stderr, 'Matcher is shutting down.'
         self.incoming_notes.put(self.SHUTDOWN_SENTINEL)
         return True
     

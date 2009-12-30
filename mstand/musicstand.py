@@ -31,7 +31,7 @@ def main(filename, algorithm, window_size, interval, debug=False):
         
         if measure_changed:
             open_page(filename, current_measure, cache_dir)
-        if matcher.current_position >= (len(matcher.intervals) - 1):
+        if matcher.current_location >= (len(matcher.intervals) - 1):
             print 'Done with the piece!'
             matcher.shutdown()
     
@@ -53,6 +53,7 @@ def main(filename, algorithm, window_size, interval, debug=False):
     matcher.shutdown()
     analyzer.stop()
     print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
+    os.system('killall Preview')
 
 def get_algorithm(name):
     full_name = 'mstand.match.%s' % name
@@ -93,6 +94,7 @@ def parse_algorithm_options(raw_list):
         try:
             name, value = option.split('=', 1)
         except ValueError:
+            name = option
             value = True
         else:
             value = parse_value(value)
@@ -127,9 +129,12 @@ if __name__ == '__main__':
         parser.error('file %r does not exist' % args[0])
     
     # Load the matching algorithm implementation
-    algorithm_class = get_algorithm(options.algorithm)
-    algorithm_options = parse_algorithm_options(options.algorithm_options)
-    algorithm = algorithm_class(**algorithm_options)
+    try:
+        algorithm_class = get_algorithm(options.algorithm)
+        algorithm_options = parse_algorithm_options(options.algorithm_options)
+        algorithm = algorithm_class(**algorithm_options)
+    except ValueError, e:
+        parser.error(e[0])
     
     # Do some sanity checks
     if not is_power_of_two(options.interval):

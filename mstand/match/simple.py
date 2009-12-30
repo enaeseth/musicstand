@@ -27,7 +27,7 @@ class SimpleAlgorithm(Algorithm):
         return freq_to_note(frequencies[0])
     
     def match(self, new_note):
-        if new_note == self.current_note or new_note[0] < min_octave:
+        if new_note == self.current_note or new_note[0] < self.min_octave:
             # ignore it
             return self.current_location
         
