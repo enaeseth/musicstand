@@ -4,6 +4,6 @@
 import os
 
 def open_page(filename, measure_number, cache_dir):
-    base, ext = os.path.splitext(filename)
+    base, ext = os.path.splitext(os.path.basename(filename))
     path = os.path.join(cache_dir, '%s.%d.pdf' % (base, measure_number))
     os.system('open "%s"' % path)
