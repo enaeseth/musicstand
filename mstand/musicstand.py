@@ -55,8 +55,9 @@ def main(filename, algorithm, window_size, interval, debug=False):
     print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
 
 def get_algorithm(name):
+    full_name = 'mstand.match.%s' % name
     try:
-        module = __import__('mstand.match.%s' % name)
+        module = __import__(full_name)
         for name in dir(module):
             member = getattr(module, name)
             try:
@@ -64,8 +65,8 @@ def get_algorithm(name):
                     return member
             except TypeError:
                 pass
-        raise ValueError('module mstand.match.%s contains no Algorithm '
-            'subclasses' % name)
+        raise ValueError('module %s contains no Algorithm '
+            'subclasses' % full_name)
     except ImportError:
         raise ValueError('unknown matching algorithm %r' % name)
 
