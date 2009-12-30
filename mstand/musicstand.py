@@ -72,6 +72,8 @@ def get_algorithm(name):
 
 def parse_algorithm_options(raw_list):
     options = {}
+    if raw_list is None:
+        return options
     
     def parse_value(value):
         if value in ('true', 'True', 'yes', 'on'):
