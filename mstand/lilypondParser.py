@@ -25,7 +25,7 @@ class Note():
 		self.accidental = None
 		self.octave = 0
 		
-	def parse_note(self, note_data):
+	def parse_note(self, note_data, time):
 		self.pitch = note_data[0]
 		if 'is' in note_data:
 			self.accidental = 'sharp'
@@ -33,7 +33,7 @@ class Note():
 			self.accidental = 'flat'
 		for char in note_data:
 			if char.isdigit():
-				self.duration = float(char)
+				self.duration = time/float(char)
 			elif char == '\'':
 				self.octave += 1
 			elif char == ',':
@@ -64,22 +64,29 @@ def parse_file(filename):
 	file = open(filename, 'r')
 	notes_pos = 0
 	found_notes = False
+	beats = 4.0
+	time = 4.0
 	for line in file:
 		list = line.split()
 		if list:
 			if list[0][0].isalpha() or list[0][0] == "<" or list[0][0] == ">":
 				found_notes = True
 				for i in list:
-					if i[0].isalpha() or i[0] == "<" or i[0] == ">":
+					if i[0].isalpha() and not i[0] == "r" or i[0] == "<" or i[0] == ">":
 						notes.append(i.upper())
 						
+			elif list[0] == "\\time":
+				timesig = list[1].split('/')
+				beats = float(timesig[0])
+				time = float(timesig[1])
+				
 		if not found_notes:
 			notes_pos += 1
 			
 	file.close()
 	octavo = 4
 	measure = 1.00
-	duration = 4.0
+	duration = time
 	number = 1
 	chord = False
 	for note in notes:
@@ -87,7 +94,7 @@ def parse_file(filename):
 			chord = True
 		elif note == ">":
 			chord = False
-			measure = measure + (1/float(duration))
+			measure = measure + (duration/beats)
 		else:
 			measure = str(measure)
 			parts = measure.split('.')
@@ -95,7 +102,7 @@ def parse_file(filename):
 			measure = float(measure)
 			measure_num = parts[0]
 			this_note = Note(float(measure_num), float(duration), float(beat_number))
-			this_note.parse_note(note)
+			this_note.parse_note(note, time)
 			number += 1
 			if len(big_note_array) >= 1:
 				octavo = octavo + this_note.octave + find_octave(big_note_array[-1][3][0][1],this_note.pitch)
@@ -105,7 +112,7 @@ def parse_file(filename):
 				this_note.octave = octavo
 			this_note.print_note(big_note_array)
 			if not chord:
-				measure = measure + (1/float(this_note.duration))
+				measure = measure + (float(this_note.duration)/beats)
 			duration = this_note.duration
 	
 	cache_dir = get_cache_dir(filename)
