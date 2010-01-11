@@ -16,7 +16,7 @@ try:
 except ImportError:
 	from sha import new as sha1
 
-class Note():
+class Note(object):
 	def __init__(self, meas, dur, num):
 		self.pitch = 0
 		self.beat_number = num
@@ -25,7 +25,7 @@ class Note():
 		self.accidental = None
 		self.octave = 0
 		
-	def parse_note(self, note_data, time):
+	def parse_note(self, note_data, time, beats):
 		self.pitch = note_data[0]
 		if 'is' in note_data:
 			self.accidental = 'sharp'
@@ -33,7 +33,7 @@ class Note():
 			self.accidental = 'flat'
 		for char in note_data:
 			if char.isdigit():
-				self.duration = time/float(char)
+				self.duration = time / (float(char) * beats)
 			elif char == '\'':
 				self.octave += 1
 			elif char == ',':
@@ -82,7 +82,7 @@ def parse_file(filename):
 				
 		if not found_notes:
 			notes_pos += 1
-			
+	
 	file.close()
 	octavo = 4
 	measure = 1.00
@@ -94,15 +94,11 @@ def parse_file(filename):
 			chord = True
 		elif note == ">":
 			chord = False
-			measure = measure + (duration/beats)
+			measure += duration
 		else:
-			measure = str(measure)
-			parts = measure.split('.')
-			beat_number = "."+parts[1]
-			measure = float(measure)
-			measure_num = parts[0]
-			this_note = Note(float(measure_num), float(duration), float(beat_number))
-			this_note.parse_note(note, time)
+			beat_number = measure - int(measure)
+			this_note = Note(math.floor(measure), float(duration), float(beat_number))
+			this_note.parse_note(note, time, beats)
 			number += 1
 			if len(big_note_array) >= 1:
 				octavo = octavo + this_note.octave + find_octave(big_note_array[-1][3][0][1],this_note.pitch)
@@ -112,10 +108,11 @@ def parse_file(filename):
 				this_note.octave = octavo
 			this_note.print_note(big_note_array)
 			if not chord:
-				measure = measure + (float(this_note.duration)/beats)
+				measure += (float(this_note.duration))
 			duration = this_note.duration
 	
 	cache_dir = get_cache_dir(filename)
+	# print cache_dir, os.path.exists(cache_dir)
 	if os.path.exists(cache_dir):
 		# already generated these PDF's
 		return (big_note_array, cache_dir)

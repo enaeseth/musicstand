@@ -11,6 +11,7 @@ import re
 
 from Queue import Queue, Empty
 from threading import Thread, Event
+from collections import deque
 
 class Interval(object):
     """
@@ -37,6 +38,15 @@ class Matcher(object):
     SHUTDOWN_SENTINEL = object()
     
     def __init__(self, notes, algorithm, change_listener, debug=False):
+        self.current_location = None
+        self.previous_location = None
+        self.miss_count = None
+        self.debug_enabled = debug
+        self.running = False
+        
+        self.history = deque()
+        self.history_length = 1
+        
         algorithm.assign_matcher(self)
         
         self.algorithm = algorithm
@@ -44,25 +54,23 @@ class Matcher(object):
         self.intervals = self.create_intervals(notes)
         self.change_listener = change_listener
         
-        self.current_location = None
-        self.previous_location = None
-        self.miss_count = None
-        self.debug_enabled = debug
-        self.running = False
-        
         algorithm.start_piece()
     
     @property
     def current_interval(self):
         """The interval that was most recently matched"""
         return (self.intervals[self.current_location]
-            if self.current_location else None)
+            if self.current_location is not None else None)
     
     @property
     def previous_interval(self):
         """The interval that was matched just before the current one"""
         return (self.intervals[self.previous_location]
-            if self.previous_location else None)
+            if self.previous_location is not None else None)
+    
+    def keep_history(self, length):
+        self.history_length = max(self.history_length, length)
+        return self.history_length
     
     def add(self, frequencies):
         """
@@ -102,13 +110,20 @@ class Matcher(object):
         self.running = True
         self.incoming_notes = Queue(0)
         self.current_location = 0
+        self.change_listener(self)
+        previous_notes = None
         
         while self.running:
-            print "."
             new_notes = self.incoming_notes.get()
             if new_notes is self.SHUTDOWN_SENTINEL:
                 # we're being told to stop
                 break
+            elif new_notes == previous_notes:
+                continue
+            
+            self.history.append(new_notes)
+            while len(self.history) > self.history_length:
+                self.history.popleft()
             
             location = self.algorithm.match(new_notes)
             if location != self.current_location:
@@ -117,7 +132,6 @@ class Matcher(object):
                 self.current_location = location
                 
                 self.change_listener(self)
-            print self.running
     
     def shutdown(self):
         """
@@ -135,7 +149,7 @@ class Matcher(object):
         
         for note in notes:
             start_time = note[0] + note[1]
-            end_time = start_time + (1.0 / note[2])
+            end_time = start_time + note[2]
             times.add(start_time)
             times.add(end_time)
         
@@ -153,7 +167,7 @@ class Matcher(object):
         # warning: shit be O(n*k), yo. fix up when we care.
         for note in notes:
             start_time = note[0] + note[1]
-            end_time = start_time + (1.0 / note[2])
+            end_time = start_time + note[2]
             
             for interval in intervals:
                 if start_time < interval.end and interval.start < end_time:
