@@ -17,7 +17,8 @@ lilypondPDFoutput="${directory}"$filename".pdf"
 
 #do
 echo "${directory}/${filename}"
-./LilyPond.app/Contents/Resources/bin/lilypond -o "${directory}/${filename}" "$1"
+my_home=`dirname "$0"`
+"$my_home/LilyPond.app/Contents/Resources/bin/lilypond" -o "${directory}/${filename}" "$1"
 #wait
 #open "${lilypondPDFoutput}"
 #open "${lilypondMIDIoutput}"
