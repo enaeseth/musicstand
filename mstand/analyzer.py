@@ -74,6 +74,8 @@ class Analyzer(object):
             results = fft.fft(samples, self.min_power)
             if results:
                 self._send_results(results)
+            else:
+                self._send_results(None)
         
         self.analyzer_pool.execute(perform_analysis)
     
