@@ -29,6 +29,14 @@ class Algorithm(object):
         assert self.matcher is None, 'this algorithm object already has a ' \
             'matcher'
         self.matcher = matcher
+        self.configure_matcher()
+    
+    def configure_matcher(self):
+        """
+        Override this function to make any desired calls into
+        `self.matcher` at startup.
+        """
+        pass
     
     def start_piece(self):
         """
