@@ -12,6 +12,7 @@ from __future__ import with_statement
 from mstand.monitor import Monitor
 from mstand.analyzer import Analyzer
 from mstand.lilypondParser import parse_file as parse_lilypond_file
+from mstand import notes
 from mstand.pages import open_page
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
@@ -19,7 +20,6 @@ from mstand.match.algorithm import Algorithm
 import re
 import os
 import sys
-import notes
 from time import sleep
 
 def main(filename, algorithm, window_size, interval, debug=False):
