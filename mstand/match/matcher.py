@@ -52,6 +52,7 @@ class Matcher(object):
         self.algorithm = algorithm
         self.incoming_notes = None # this gets created in .run()
         self.intervals = self.create_intervals(notes)
+        self.insert_rests_between_identical_intervals(self.intervals)
         self.change_listener = change_listener
         
         algorithm.start_piece()
@@ -120,6 +121,7 @@ class Matcher(object):
                 break
             elif new_notes == previous_notes:
                 continue
+            previous_notes = new_notes
             
             self.history.append(new_notes)
             while len(self.history) > self.history_length:
@@ -172,6 +174,24 @@ class Matcher(object):
             for interval in intervals:
                 if start_time < interval.end and interval.start < end_time:
                     interval.notes.extend(note[3])
+        
+        return intervals
+    
+    def insert_rests_between_identical_intervals(self, intervals):
+        i = 0
+        
+        while i < len(intervals):
+            current = intervals[i]
+            try:
+                upcoming = intervals[i + 1]
+            except IndexError:
+                break
+            
+            if current.notes == upcoming.notes:
+                time = upcoming.start
+                intervals.insert(i + 1, Interval(time, time))
+            
+            i += 1
         
         return intervals
     
