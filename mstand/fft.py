@@ -16,6 +16,7 @@ def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
     last_bucket = 0
     last_power = 0
     increasing = True
+    sufficient = 0
     for i, frequency in enumerate(freqs):
         peak_power = 0
         
@@ -25,6 +26,8 @@ def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
                 greatest_power = max(greatest_power, power)
 
         if peak_power > 0:
+            sufficient += 1
+            # print "%.02f (%s) => %r" % (frequency, notes.unparse_note(*notes.freq_to_note(frequency)), powers[i])
             # print "%.02f => %d" % (frequency, int(peak_power)),
             
             if increasing and peak_power < last_power:
@@ -42,6 +45,9 @@ def fft(samples, min_power=0, inclusion=0.05, sample_rate=44100):
             last_power = peak_power
             last_freq = frequency
             last_bucket = i
+    
+    if sufficient == 1:
+        accepted_frequencies[last_freq] = last_power
     
     cutoff = greatest_power * inclusion
     return [freq for freq, power in
