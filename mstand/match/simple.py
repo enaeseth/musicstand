@@ -23,42 +23,51 @@ class SimpleAlgorithm(Algorithm):
             interval.notes = [freq_to_note(note_to_freq(*note)) for note in interval.notes]
         self.miss_count = 0
         self.current_location = 0
-        self.last_note = None
-        self.last_heard = []
+        self.last_notes = None
     
     def filter_frequencies(self, frequencies):
-        # only use the first (most prominent) note
-        return freq_to_note(frequencies[0]) if frequencies else None
+        return map(freq_to_note, frequencies)
     
-    def match(self, new_note):
-        new_note = freq_to_note(note_to_freq(*new_note))
+    def match(self, new_notes):
+        if new_notes:
+            new_notes = [freq_to_note(note_to_freq(*new_note))
+                for new_note in new_notes]
+            
+            if all(new_note[0] < self.min_octave for new_note in new_notes):
+                # treat it as silence (XXX: is that the right thing to do?)
+                new_notes = []
         
-        if self.miss_count >= 4:
-            staff = [i.notes[0][1] for i in self.matcher.intervals]
-            self.miss_count = 0
-            self.debug('looking for %r' % self.last_heard)
-            self.current_location = where_are_we(staff, self.last_heard)[0]
-            self.debug("DTW'ing our way to %r" % self.current_location)
-            return self.current_location
+        # if self.miss_count >= 4:
+        #     staff = [i.notes[0][1] for i in self.matcher.intervals]
+        #     self.miss_count = 0
+        #     self.debug('looking for %r' % self.last_heard)
+        #     self.current_location = where_are_we(staff, self.last_heard)[0]
+        #     self.debug("DTW'ing our way to %r" % self.current_location)
+        #     return self.current_location
         
-        if new_note[0] < self.min_octave:
-            # ignore it
-            return self.current_location
+        # if new_note is not None:
+        #     print '%s (%s), %d' % (new_note[1], unparse_note(*new_note),
+        #         self.miss_count)
+        # else:
+        #     print '-silence-, %d' % self.miss_count
         
-        print '%s (%s), %d' % (new_note[1], unparse_note(*new_note), self.miss_count)
-        
-        if new_note != self.last_note:
-            if len(self.last_heard) >= 4:
-                self.last_heard.pop()
-            self.last_heard.append(new_note[1])
-        
+        was_subset = False
         def matches(position):
-            try:
-                letters = [n[1] for n in self.intervals[position].notes]
-                self.debug('%s =?= %s', new_note[1], ''.join(letters))
-                return new_note[1] in letters
-            except IndexError:
-                return False
+            if not new_notes:
+                if position == 0:
+                    was_subset = True
+                return len(self.intervals[position].notes) == 0
+            
+            heard_letters = set(note[1] for note in new_notes)
+            expected_notes = self.intervals[position].notes
+            expected_letters = set(note[1] for note in expected_notes)
+            
+            if position == 0:
+                was_subset = heard_letters.issubset(expected_letters)
+            
+            self.debug('%s =?= %s', ''.join(heard_letters),
+                ''.join(expected_letters))
+            return heard_letters == expected_letters
         
         # min(self.miss_count + 2, 4)
         for i in range(1, 2) + [0]:
@@ -68,25 +77,9 @@ class SimpleAlgorithm(Algorithm):
                 self.miss_count = max(self.miss_count - (i + 1), 0)
                 break
         else:
-            if new_note != self.last_note: 
+            if new_note != self.last_notes and not was_subset:
                 self.miss_count += 1
         
-        self.last_note = new_note
-        # for i in range(1, min(self.miss_count + 1, 3) + 1) + [0]:
-        #     if matches(self.current_location + i):
-        #         self.current_location += i
-        #         if i > 0:
-        #             self.debug("onward, %d notes" % i)
-        #             self.miss_count = max(self.miss_count - i, 0)
-        # if matches(self.current_location + 1):
-        #     # self.debug("MOVING FORWARD LIKE A SCREAMING NARWHAL")
-        #     self.current_location += 1
-        #     self.miss_count = max(self.miss_count - 1, 0)
-        # elif matches(self.current_location):
-        #     self.miss_count = max(self.miss_count - 1, 0)
-        # else:
-        #     self.miss_count += 1
-        
-        # self.debug('%r (%d misses)' % (self.current_location, self.miss_count))
-        # self.debug('miss count is now %d', self.miss_count)
+        self.debug('miss count is now %d' % self.miss_count)
+        self.last_notes = new_note
         return self.current_location

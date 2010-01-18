@@ -75,7 +75,7 @@ class Analyzer(object):
             if results:
                 self._send_results(results)
             else:
-                self._send_results(None)
+                self._send_results([])
         
         self.analyzer_pool.execute(perform_analysis)
     
