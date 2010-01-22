@@ -41,7 +41,7 @@ class SimpleAlgorithm(Algorithm):
         #     staff = [i.notes[0][1] for i in self.matcher.intervals]
         #     self.miss_count = 0
         #     self.debug('looking for %r' % self.last_heard)
-        #     self.current_location = where_are_we(staff, self.last_heard)[0]
+        #     self.current_location = where_are_we(staff, self.last_heard)
         #     self.debug("DTW'ing our way to %r" % self.current_location)
         #     return self.current_location
         
