@@ -10,6 +10,7 @@
 
 typedef struct {
     PyObject_HEAD
+    PaDeviceIndex index;
     const PaDeviceInfo* info;
 } DeviceObject;
 

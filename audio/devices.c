@@ -4,8 +4,11 @@
 
 #include "devices.h"
 
+static int audio_device_init(DeviceObject* self, PyObject* args,
+    PyObject* kwargs);
 static PyObject* audio_device_repr(DeviceObject* self);
 static PyObject* audio_device_get_name(DeviceObject* self, void* closure);
+static PyObject* audio_device_get_index(DeviceObject* self, void* closure);
 static PyObject* audio_device_get_input_channels(DeviceObject* self,
     void* closure);
 static PyObject* audio_device_get_output_channels(DeviceObject* self,
@@ -32,8 +35,8 @@ PyObject* audio_devices_get(PyObject* self, PyObject* nothing)
     }
     
     DeviceObject* device;
-    const PaDeviceInfo* info;
     Py_ssize_t i;
+    PyObject* args;
     for (i = 0; i < device_count; i++) {
         device = PyObject_New(DeviceObject, &DeviceType);
         if (device == NULL) {
@@ -41,13 +44,12 @@ PyObject* audio_devices_get(PyObject* self, PyObject* nothing)
             return NULL;
         }
         
-        info = Pa_GetDeviceInfo((PaDeviceIndex) i);
-        if (info == NULL) {
+        args = Py_BuildValue("(i)", (int) i);
+        if (audio_device_init(device, args, NULL) != 0) {
             Py_DECREF(device_list);
             return NULL;
         }
         
-        device->info = info;
         PyList_SET_ITEM(device_list, i, (PyObject*) device);
     }
     
@@ -56,7 +58,8 @@ PyObject* audio_devices_get(PyObject* self, PyObject* nothing)
 
 static PyObject* audio_device_repr(DeviceObject* self)
 {
-    return PyString_FromFormat("<audio.Device %s>", self->info->name);
+    return PyString_FromFormat("<%s %s>", self->ob_type->tp_name,
+        self->info->name);
 }
 
 static PyObject* audio_device_str(DeviceObject* self)
@@ -67,6 +70,11 @@ static PyObject* audio_device_str(DeviceObject* self)
 static PyObject* audio_device_get_name(DeviceObject* self, void* closure)
 {
     return PyString_FromString(self->info->name);
+}
+
+static PyObject* audio_device_get_index(DeviceObject* self, void* closure)
+{
+    return PyInt_FromLong((long) self->index);
 }
 
 static PyObject* audio_device_get_input_channels(DeviceObject* self,
@@ -95,8 +103,24 @@ static PyObject* audio_device_set(DeviceObject* self, PyObject* value,
 }
 
 static int audio_device_init(DeviceObject* self, PyObject* args,
-    PyObject* kwds)
+    PyObject* kwargs)
 {
+    int device_index = -1;
+    static char* kwlist[] = {"index", NULL};
+    
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", kwlist, &device_index))
+        return -1;
+    
+    const PaDeviceInfo* info = Pa_GetDeviceInfo((PaDeviceIndex) device_index);
+    if (info == NULL) {
+        PyErr_Format(PyExc_ValueError,
+            "Failed to get info for PortAudio device %d.", device_index);
+        return -1;
+    }
+    
+    self->info = info;
+    self->index = (PaDeviceIndex) device_index;
+    
     return 0;
 }
 
@@ -108,6 +132,8 @@ static void audio_device_dealloc(DeviceObject* self)
 static PyGetSetDef Device_getset[] = {
     {"name", (getter) audio_device_get_name, (setter) audio_device_set,
         "The human-readable name of the audio device", NULL},
+    {"index", (getter) audio_device_get_index, (setter) audio_device_set,
+        "The internal PyAudio index of the audio device", NULL},
     {"input_channels", (getter) audio_device_get_input_channels,
         (setter) audio_device_set,
         "The maximum number of input channels that the device provides", NULL},
