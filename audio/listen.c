@@ -5,20 +5,7 @@
 #include <string.h>
 #include "listen.h"
 #include "devices.h"
-
-#ifdef SINGLE_PRECISION_FFT
-#define _fft_malloc fftwf_malloc
-#define _fft_free fftwf_free
-#define _fft_plan fftwf_plan_r2r_1d
-#define _fft_execute fftwf_execute
-#define _fft_destroy_plan fftwf_destroy_plan
-#else
-#define _fft_malloc fftw_malloc
-#define _fft_free fftw_free
-#define _fft_plan fftw_plan_r2r_1d
-#define _fft_execute fftw_execute
-#define _fft_destroy_plan fftw_destroy_plan
-#endif
+#include "fft.h"
 
 #ifdef DEBUG
 #define listen_debug(_message) \
@@ -112,20 +99,17 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         }
         
         self->staging_buffer =
-            (sample_t*) _fft_malloc(sizeof(sample_t) * window_size * 2);
+            ringbuffer_create(sizeof(sample_t) * window_size * 6);
         if (self->staging_buffer == NULL) {
             Py_DECREF(self);
             return PyErr_NoMemory();
         }
-        self->staging_buffer_size = window_size * 2;
-        self->staging_buffer_end = self->staging_buffer +
-            self->staging_buffer_size;
-        self->staging_area = self->staging_buffer;
         
         self->fft_buffer =
             (fft_sample_t*) _fft_malloc(sizeof(fft_sample_t) * window_size);
         if (self->fft_buffer == NULL) {
-            _fft_free(self->staging_buffer);
+            ringbuffer_destroy(self->staging_buffer);
+            self->staging_buffer = NULL;
             Py_DECREF(self);
             return PyErr_NoMemory();
         }
@@ -133,8 +117,10 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         self->fft_result_buffer =
             (fft_sample_t*) _fft_malloc(sizeof(fft_sample_t) * window_size);
         if (self->fft_buffer == NULL) {
-            _fft_free(self->staging_buffer);
+            ringbuffer_destroy(self->staging_buffer);
             _fft_free(self->fft_buffer);
+            self->staging_buffer = NULL;
+            self->fft_buffer = NULL;
             Py_DECREF(self);
             return PyErr_NoMemory();
         }
@@ -146,9 +132,11 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         self->stream = NULL;
         self->result_queue = NULL;
         self->device = device_index;
-        self->window_size = window_size;
-        self->interval = interval;
+        self->window_size = (size_t) window_size;
+        self->interval = (size_t) interval;
+        self->interval_ratio = ((double) interval) / window_size;
         self->sample_rate = sample_rate;
+        self->sample_duration = (1 / sample_rate);
     }
     
     return (PyObject*) self;
@@ -202,7 +190,6 @@ static void audio_listener_dealloc(ListenerObject* self)
     listen_debug("Deallocating an audio listener.\n");
     
     if (self->active > 0) {
-        listen_debug("... but stopping it first.");
         if (audio_listener_stop(self, NULL) == NULL)
             return;
     }
@@ -214,7 +201,9 @@ static void audio_listener_dealloc(ListenerObject* self)
     
     _fft_free(self->fft_buffer);
     _fft_free(self->fft_result_buffer);
-    _fft_free(self->staging_buffer);
+    ringbuffer_destroy(self->staging_buffer);
+    self->staging_buffer = NULL;
+    self->fft_buffer = self->fft_result_buffer = NULL;
     _fft_destroy_plan(self->plan);
     Py_XDECREF(self->result_queue);
     
@@ -279,8 +268,7 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
         return NULL;
     }
     
-    memset(self->staging_buffer, 0,
-        sizeof(sample_t*) * self->staging_buffer_size);
+    ringbuffer_clear(self->staging_buffer);
     
     Py_BLOCK_THREADS
     
@@ -302,6 +290,7 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
     // Wait for the analysis thread to signal its startup before we start the
     // PyAudio stream.
     pthread_cond_wait(&self->ready_for_fft, &self->sync);
+    listen_debug_f("Analysis thread signalled startup: %d.\n", self->active);
     
     PaError start_err = Pa_StartStream(self->stream);
     if (start_err != paNoError) {
@@ -314,6 +303,8 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
             Py_BuildValue("(s, i)", "Failed to initialize PortAudio",
                 (int) start_err));
         return NULL;
+    } else {
+        listen_debug("Successfully started PortAudio stream.\n");
     }
     
     // successful startup!
@@ -324,6 +315,7 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
 
 static PyObject* audio_listener_stop(ListenerObject* self, PyObject* unused)
 {
+    listen_debug("Stopping the audio listener.\n");
     Py_BEGIN_ALLOW_THREADS
     
     pthread_mutex_lock(&self->sync);
@@ -338,6 +330,7 @@ static PyObject* audio_listener_stop(ListenerObject* self, PyObject* unused)
     pthread_join(self->analysis_thread, NULL);
     
     Py_END_ALLOW_THREADS
+    listen_debug("Analysis thread has exited.\n");
     Py_XDECREF(self->result_queue);
     self->result_queue = NULL;
     Py_RETURN_NONE;
@@ -360,36 +353,52 @@ static int audio_listener_callback(const void *input, void *unused,
     unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo* time_info,
     PaStreamCallbackFlags status_flags, void *data)
 {
-    // ListenerObject* self = (ListenerObject*) data;
-    #warning audio listener callback not implemented
+    ListenerObject* self = (ListenerObject*) data;
+    
+    size_t input_size = (sizeof(sample_t) * frames_per_buffer);
+    
+    if (status_flags & paInputOverflow)
+        fprintf(stderr, "warning: audio input buffer has overflowed\n");
+    
+    if (ringbuffer_write(self->staging_buffer, input, input_size) == 0) {
+        fprintf(stderr, "warning: insufficient space in staging buffer\n");
+    }
+    fprintf(stderr, "Received %lu audio samples.\n", frames_per_buffer);
+    
     return paContinue; // OK
 }
 
 static void* audio_listener_analyze(void* data)
 {
     ListenerObject* self = (ListenerObject*) data;
+    size_t read;
+    size_t peek_size = sizeof(sample_t) * self->window_size;
+    size_t advance_size = sizeof(sample_t) * self->interval;
     
     // audio_listener_start() waits for the analysis thread to signal its
     // startup, so let's oblige it
     pthread_mutex_lock(&self->sync);
     self->active = 1;
+    fprintf(stderr, "Activated analysis thread: %d.\n", self->active);
     pthread_cond_broadcast(&self->ready_for_fft);
+    pthread_mutex_unlock(&self->sync);
     
-    // main FFT analysis loop
-    // (note that we still have the lock as we enter it the first time)
-    while (1) {
-        while (self->active > 0 && self->samples_collected < self->window_size)
-            pthread_cond_wait(&self->ready_for_fft, &self->sync);
-        
-        if (self->active <= 0) {
-            self->active = 0;
-            break;
+    while (self->active > 0) {
+        read = ringbuffer_peek(self->staging_buffer, self->fft_buffer,
+            peek_size);
+        if (read < peek_size) {
+            // sleep for a bit until we get some more samples
+            usleep(1000000 * (self->interval * self->sample_duration));
+            continue;
         }
         
-        #warning audio analysis not implemented
+        ringbuffer_advance_read(self->staging_buffer, advance_size);
+        fprintf(stderr, "Analyzing %lu audio samples.\n",
+            read / sizeof(sample_t));
+        
+        #warning FFT analysis not yet implemented
     }
     
-    pthread_mutex_unlock(&self->sync);
     pthread_exit(NULL);
 }
 

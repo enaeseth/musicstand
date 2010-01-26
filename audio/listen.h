@@ -10,6 +10,7 @@
 #include <fftw3.h>
 #include <pthread.h>
 #include "queue.h"
+#include "ringbuffer.h"
 
 typedef float sample_t;
 
@@ -21,9 +22,11 @@ typedef double fft_sample_t;
 
 typedef struct {
     PyObject_HEAD
-    Py_ssize_t window_size;
-    Py_ssize_t interval;
+    size_t window_size;
+    size_t interval;
+    double interval_ratio; // (interval / window_size) as a double
     double sample_rate;
+    double sample_duration;
     PaStream* stream;
     PaDeviceIndex device;
     
@@ -38,12 +41,7 @@ typedef struct {
     fftw_plan plan;
 #endif
 
-    size_t staging_buffer_size;
-    size_t samples_collected;
-    sample_t* staging_buffer;
-    sample_t* staging_buffer_end;
-    sample_t* staging_area;
-    sample_t* staging_fft_position;
+    ringbuffer_t staging_buffer;
     fft_sample_t* fft_buffer;
     fft_sample_t* fft_result_buffer;
     QueueObject* result_queue;
