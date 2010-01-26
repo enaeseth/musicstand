@@ -6,10 +6,28 @@
 #include "listen.h"
 #include "devices.h"
 
-#ifdef DEBUG
-#define listen_debug(...) PySys_WriteStderr(__VA_ARGS__)
+#ifdef SINGLE_PRECISION_FFT
+#define _fft_malloc fftwf_malloc
+#define _fft_free fftwf_free
+#define _fft_plan fftwf_plan_r2r_1d
+#define _fft_execute fftwf_execute
+#define _fft_destroy_plan fftwf_destroy_plan
 #else
-#define listen_debug(...)
+#define _fft_malloc fftw_malloc
+#define _fft_free fftw_free
+#define _fft_plan fftw_plan_r2r_1d
+#define _fft_execute fftw_execute
+#define _fft_destroy_plan fftw_destroy_plan
+#endif
+
+#ifdef DEBUG
+#define listen_debug(_message) \
+     PySys_WriteStderr("[listen.c:%d] " _message, __LINE__)
+#define listen_debug_f(_format, ...) \
+     PySys_WriteStderr("[listen.c:%d] " _format, __LINE__, __VA_ARGS__)
+#else
+#define listen_debug(_message)
+#define listen_debug_f(_format, ...)
 #endif
 
 static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
@@ -94,7 +112,7 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         }
         
         self->staging_buffer =
-            (sample_t*) fftw_malloc(sizeof(sample_t) * window_size * 2);
+            (sample_t*) _fft_malloc(sizeof(sample_t) * window_size * 2);
         if (self->staging_buffer == NULL) {
             Py_DECREF(self);
             return PyErr_NoMemory();
@@ -105,12 +123,24 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         self->staging_area = self->staging_buffer;
         
         self->fft_buffer =
-            (sample_t*) fftw_malloc(sizeof(sample_t) * window_size);
+            (fft_sample_t*) _fft_malloc(sizeof(fft_sample_t) * window_size);
         if (self->fft_buffer == NULL) {
-            fftw_free(self->staging_buffer);
+            _fft_free(self->staging_buffer);
             Py_DECREF(self);
             return PyErr_NoMemory();
         }
+        
+        self->fft_result_buffer =
+            (fft_sample_t*) _fft_malloc(sizeof(fft_sample_t) * window_size);
+        if (self->fft_buffer == NULL) {
+            _fft_free(self->staging_buffer);
+            _fft_free(self->fft_buffer);
+            Py_DECREF(self);
+            return PyErr_NoMemory();
+        }
+        
+        self->plan = _fft_plan((int) window_size, self->fft_buffer,
+            self->fft_result_buffer, FFTW_HC2R, 0);
         
         self->active = 0;
         self->stream = NULL;
@@ -130,7 +160,7 @@ static int audio_listener_init(ListenerObject* self, PyObject* args,
     PaStreamParameters input_params;
     
     const PaDeviceInfo* info = Pa_GetDeviceInfo(self->device);
-    listen_debug("Initializing an audio listener on \"%s\".\n", info->name);
+    listen_debug_f("Initializing an audio listener on \"%s\".\n", info->name);
     
     memset(&input_params, 0, sizeof(PaStreamParameters));
     input_params.channelCount = 1;
@@ -176,8 +206,10 @@ static void audio_listener_dealloc(ListenerObject* self)
         self->stream = NULL;
     }
     
-    fftw_free(self->fft_buffer);
-    fftw_free(self->staging_buffer);
+    _fft_free(self->fft_buffer);
+    _fft_free(self->fft_result_buffer);
+    _fft_free(self->staging_buffer);
+    _fft_destroy_plan(self->plan);
     Py_XDECREF(self->result_queue);
     
     pthread_cond_destroy(&self->ready_for_fft);
