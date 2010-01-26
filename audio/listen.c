@@ -201,6 +201,12 @@ static void audio_listener_dealloc(ListenerObject* self)
 {
     listen_debug("Deallocating an audio listener.\n");
     
+    if (self->active > 0) {
+        listen_debug("... but stopping it first.");
+        if (audio_listener_stop(self, NULL) == NULL)
+            return;
+    }
+    
     if (self->stream != NULL) {
         Pa_CloseStream(&self->stream);
         self->stream = NULL;
@@ -333,6 +339,7 @@ static PyObject* audio_listener_stop(ListenerObject* self, PyObject* unused)
     
     Py_END_ALLOW_THREADS
     Py_XDECREF(self->result_queue);
+    self->result_queue = NULL;
     Py_RETURN_NONE;
 }
 
