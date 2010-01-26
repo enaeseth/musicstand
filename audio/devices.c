@@ -4,8 +4,6 @@
 
 #include "devices.h"
 
-static int audio_device_init(DeviceObject* self, PyObject* args,
-    PyObject* kwargs);
 static PyObject* audio_device_repr(DeviceObject* self);
 static PyObject* audio_device_get_name(DeviceObject* self, void* closure);
 static PyObject* audio_device_get_index(DeviceObject* self, void* closure);
@@ -102,7 +100,7 @@ static PyObject* audio_device_set(DeviceObject* self, PyObject* value,
     return NULL;
 }
 
-static int audio_device_init(DeviceObject* self, PyObject* args,
+int audio_device_init(DeviceObject* self, PyObject* args,
     PyObject* kwargs)
 {
     int device_index = -1;

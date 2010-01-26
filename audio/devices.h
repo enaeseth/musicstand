@@ -22,5 +22,7 @@ extern PyTypeObject DeviceType;
  * Gets a list of all system audio devices.
  */
 PyObject* audio_devices_get(PyObject* self, PyObject* nothing);
+int audio_device_init(DeviceObject* self, PyObject* args,
+    PyObject* kwargs);
 
 #endif /* end of include guard: _DEVICES_H_ */

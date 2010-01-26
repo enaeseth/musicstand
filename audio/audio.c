@@ -4,8 +4,9 @@
 
 #include <Python.h>
 #include <portaudio.h>
-#include "audio.h"
 #include "devices.h"
+#include "queue.h"
+#include "listen.h"
 
 static PyMethodDef module_methods[] = {
     {"get_devices", (PyCFunction) audio_devices_get, METH_NOARGS,
@@ -22,6 +23,10 @@ PyMODINIT_FUNC initaudio(void) {
     
     DeviceType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&DeviceType) < 0)
+        return;
+    if (PyType_Ready(&QueueType) < 0)
+        return;
+    if (PyType_Ready(&ListenerType) < 0)
         return;
     
     PaError err = Pa_Initialize();
@@ -43,4 +48,10 @@ PyMODINIT_FUNC initaudio(void) {
     
     Py_INCREF(&DeviceType);
     PyModule_AddObject(module, "Device", (PyObject*) &DeviceType);
+    
+    Py_INCREF(&QueueType);
+    PyModule_AddObject(module, "Queue", (PyObject*) &QueueType);
+    
+    Py_INCREF(&ListenerType);
+    PyModule_AddObject(module, "Listener", (PyObject*) &ListenerType);
 }
