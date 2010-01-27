@@ -2,6 +2,8 @@
  * A fast, thread-safe, blocking, FIFO queue implementation.
  */
 
+#include <sys/time.h>
+#include <errno.h>
 #include "queue.h"
 
 PyObject* audio_queue_push(QueueObject* self, PyObject* value)
@@ -34,23 +36,60 @@ PyObject* audio_queue_push(QueueObject* self, PyObject* value)
 }
 
 PyObject* audio_queue_pop(QueueObject* self, PyObject* nada)
-{
-    Py_BEGIN_ALLOW_THREADS
+{   
+    PyThreadState* _save;
+    struct timeval now;
+    struct timespec timeout_point;
+    int result = 0;
+    PyObject* value;
+    
+    Py_UNBLOCK_THREADS
+    
     pthread_mutex_lock(&self->mutex);
     while (self->head == NULL) {
+        gettimeofday(&now, NULL);
+        timeout_point.tv_sec = now.tv_sec;
+        timeout_point.tv_nsec = (now.tv_usec * 1000) + 500000000;
+        if (timeout_point.tv_nsec >= 1000000000) {
+            timeout_point.tv_nsec -= 1000000000;
+            timeout_point.tv_sec++;
+        }
+        
         // wait for something to be put into the queue
-        pthread_cond_wait(&self->condition, &self->mutex);
+        result = pthread_cond_timedwait(&self->condition, &self->mutex,
+            &timeout_point);
+        
+        Py_BLOCK_THREADS
+        if (PyErr_CheckSignals() != 0) {
+            pthread_mutex_unlock(&self->mutex);
+            return NULL;
+        }
+        
+        if (result != 0 && result != ETIMEDOUT) {
+            PyErr_SetObject(PyExc_OSError,
+                Py_BuildValue("(i, s)", result,
+                    "Failed to wait for condition to be signalled"));
+            return NULL;
+        }
+        
+        Py_UNBLOCK_THREADS
     }
-    Py_END_ALLOW_THREADS
     
-    PyObject* value = self->head->value;
+    value = self->head->value;
     self->head = self->head->next;
     if (self->head == NULL)
         self->tail = NULL;
     self->length--;
     
     pthread_mutex_unlock(&self->mutex);
+    
+    Py_BLOCK_THREADS
     return value;
+}
+
+Py_ssize_t audio_queue_length(QueueObject* self)
+{
+    return self->length;
 }
 
 static PyObject* audio_queue_new(PyTypeObject* type, PyObject* args,
@@ -111,6 +150,19 @@ static PyMethodDef audio_queue_methods[] = {
     {NULL} // sentinel
 };
 
+static PySequenceMethods audio_queue_as_sequence = {
+    (lenfunc) audio_queue_length,     /* sq_length */
+    0,                                /* sq_concat */
+    0,                                /* sq_repeat */
+    0,                                /* sq_item */
+    0,                                /* sq_slice */
+    0,                                /* sq_ass_item */
+    0,                                /* sq_ass_slice */
+    0,                                /* sq_contains */
+    0,                                /* sq_inplace_concat */
+    0,                                /* sq_inplace_repeat */
+};
+
 PyTypeObject QueueType = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
@@ -124,7 +176,7 @@ PyTypeObject QueueType = {
     0,                         /*tp_compare*/
     0,                         /*tp_repr*/
     0,                         /*tp_as_number*/
-    0,                         /*tp_as_sequence*/
+    &audio_queue_as_sequence,  /*tp_as_sequence*/
     0,                         /*tp_as_mapping*/
     0,                         /*tp_hash */
     0,                         /*tp_call*/

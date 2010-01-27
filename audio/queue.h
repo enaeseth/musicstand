@@ -27,5 +27,6 @@ extern PyTypeObject QueueType;
 int audio_queue_init(QueueObject* self, PyObject* args, PyObject* kwargs);
 PyObject* audio_queue_push(QueueObject* self, PyObject* value);
 PyObject* audio_queue_pop(QueueObject* self, PyObject* nada);
+Py_ssize_t audio_queue_length(QueueObject* self);
 
 #endif /* end of include guard: _QUEUE_H_ */
