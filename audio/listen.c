@@ -294,7 +294,19 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
     // Wait for the analysis thread to signal its startup before we start the
     // PyAudio stream.
     pthread_cond_wait(&self->ready_for_fft, &self->sync);
-    listen_debug_f("Analysis thread signalled startup: %d.\n", self->active);
+    if (self->active == -2) {
+        pthread_mutex_unlock(&self->sync);
+        return PyErr_NoMemory();
+    } else if (self->active <= 0) {
+        pthread_mutex_unlock(&self->sync);
+        PyErr_SetObject(PyExc_RuntimeError,
+            Py_BuildValue("(s, i)", "Failed to start analysis thread",
+                self->active));
+        return NULL;
+    } else {
+        listen_debug_f("Analysis thread signalled startup: %d.\n",
+            self->active);
+    }
     
     PaError start_err = Pa_StartStream(self->stream);
     if (start_err != paNoError) {
@@ -378,35 +390,55 @@ static void* audio_listener_analyze(void* data)
     size_t read;
     size_t peek_size = sizeof(sample_t) * self->window_size;
     size_t advance_size = sizeof(sample_t) * self->interval;
+    sample_t* peek_dest;
+
+#ifdef SINGLE_PRECISION_FFT
+    peek_dest = self->fft_buffer;
+#else
+    sample_t* short_samples = _fft_malloc(peek_size);
+    peek_dest = short_samples;
+#endif
     
     // audio_listener_start() waits for the analysis thread to signal its
     // startup, so let's oblige it
     pthread_mutex_lock(&self->sync);
+#ifdef SINGLE_PRECISION_FFT
     self->active = 1;
+#else
+    self->active = (short_samples != NULL) ? 1 : -2;
+#endif
     fprintf(stderr, "Activated analysis thread: %d.\n", self->active);
     pthread_cond_broadcast(&self->ready_for_fft);
     pthread_mutex_unlock(&self->sync);
+
+#ifndef SINGLE_PRECISION_FFT
+    if (short_samples == NULL)
+        pthread_exit(NULL);
+#endif
+
     double frequency;
     size_t i;
     sample_t sample;
     int found;
     
     while (self->active > 0) {
-        read = ringbuffer_peek(self->staging_buffer, self->fft_buffer,
-            peek_size);
+        read = ringbuffer_peek(self->staging_buffer, peek_dest, peek_size);
         if (read < peek_size) {
             // sleep for a bit until we get some more samples
             usleep(1000000 * (self->interval * self->sample_duration));
             continue;
         }
         
+#ifndef SINGLE_PRECISION_FFT
+        for (i = 0; i < self->window_size; i++) {
+            self->fft_buffer[i] = (double) peek_dest[i];
+        }
+#endif
+        
         ringbuffer_advance_read(self->staging_buffer, advance_size);
         // fprintf(stderr, "Analyzing %lu audio samples.\n",
         //     read / sizeof(sample_t));
         
-#ifndef SINGLE_PRECISION_FFT
-        #error double-precision FFT not yet implemented
-#endif  
         _fft_execute(self->plan);
 
         found = 0;
