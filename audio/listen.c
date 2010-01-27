@@ -3,6 +3,7 @@
  */
 
 #include <string.h>
+#include <math.h>
 #include "listen.h"
 #include "devices.h"
 #include "fft.h"
@@ -157,8 +158,11 @@ static int audio_listener_init(ListenerObject* self, PyObject* args,
     input_params.suggestedLatency = info->defaultLowInputLatency;
     
     double sample_rate = self->sample_rate;
-    if (sample_rate == 0.0)
+    if (sample_rate == 0.0) {
         sample_rate = info->defaultSampleRate;
+        self->sample_rate = sample_rate;
+        self->sample_duration = (1 / sample_rate);
+    }
     
     // Check if the input format we're about to ask for is supported.
     PaError err = Pa_IsFormatSupported(&input_params, NULL, sample_rate);
@@ -363,7 +367,7 @@ static int audio_listener_callback(const void *input, void *unused,
     if (ringbuffer_write(self->staging_buffer, input, input_size) == 0) {
         fprintf(stderr, "warning: insufficient space in staging buffer\n");
     }
-    fprintf(stderr, "Received %lu audio samples.\n", frames_per_buffer);
+    // fprintf(stderr, "Received %lu audio samples.\n", frames_per_buffer);
     
     return paContinue; // OK
 }
@@ -382,6 +386,10 @@ static void* audio_listener_analyze(void* data)
     fprintf(stderr, "Activated analysis thread: %d.\n", self->active);
     pthread_cond_broadcast(&self->ready_for_fft);
     pthread_mutex_unlock(&self->sync);
+    double frequency;
+    size_t i;
+    sample_t sample;
+    int found;
     
     while (self->active > 0) {
         read = ringbuffer_peek(self->staging_buffer, self->fft_buffer,
@@ -393,10 +401,31 @@ static void* audio_listener_analyze(void* data)
         }
         
         ringbuffer_advance_read(self->staging_buffer, advance_size);
-        fprintf(stderr, "Analyzing %lu audio samples.\n",
-            read / sizeof(sample_t));
+        // fprintf(stderr, "Analyzing %lu audio samples.\n",
+        //     read / sizeof(sample_t));
         
-        #warning FFT analysis not yet implemented
+#ifndef SINGLE_PRECISION_FFT
+        #error double-precision FFT not yet implemented
+#endif  
+        _fft_execute(self->plan);
+
+        found = 0;
+        for (i = 0; i < self->window_size; i++) {
+            frequency = self->sample_rate * ((double) i) / self->window_size;
+            sample = self->fft_result_buffer[i];
+            if (frequency >= 120.0 && frequency <= 140.0 && fabs(sample) >= 3.0) {
+                fprintf(stderr, "%.02fHz: %.04f\n",
+                    frequency,
+                    fabs(sample));
+                found++;
+            }
+        }
+        
+        if (found > 0)
+            fprintf(stderr, "\n");
+        
+        // 0 .. n-1
+        // i / sample_rate
     }
     
     pthread_exit(NULL);
