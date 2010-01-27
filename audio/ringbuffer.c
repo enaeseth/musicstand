@@ -9,6 +9,18 @@
 #include <unistd.h>
 #include <string.h>
 
+#ifdef DEBUG
+#include <stdio.h>
+#define rb_debug(_message) \
+     fprintf(stderr, "[ringbuffer.c:%d] " _message, __LINE__)
+#define rb_debug_f(_format, ...) \
+     fprintf(stderr, "[ringbuffer.c:%d] " _format, __LINE__, __VA_ARGS__)
+#else
+#define rb_debug(_message)
+#define rb_debug_f(_format, ...)
+#endif
+
+
 ringbuffer_t ringbuffer_create(size_t size)
 {
     int power_of_two = 1;
@@ -170,7 +182,7 @@ size_t ringbuffer_write(ringbuffer_t rb, const void* src, size_t size)
         return 0;
     }
     
-    hypothetical_end = rb->read_pos + size;
+    hypothetical_end = rb->write_pos + size;
     
     if (hypothetical_end > rb->size) {
         // wrap around to the start of the buffer
@@ -185,6 +197,7 @@ size_t ringbuffer_write(ringbuffer_t rb, const void* src, size_t size)
     if (n2 > 0) {
         _RINGBUFFER_WRITE(rb, src + n1, n2);
     }
+    
     
     return size;
 }
