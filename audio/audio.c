@@ -8,13 +8,15 @@
 #include "queue.h"
 #include "listen.h"
 
+static void terminate_portaudio(void);
+
 static PyMethodDef module_methods[] = {
     {"get_devices", (PyCFunction) audio_devices_get, METH_NOARGS,
         "Gets a list of all available system audio devices"},
     {NULL}  // sentinel
 };
 
-static void terminate_portaudio() {
+static void terminate_portaudio(void) {
     Pa_Terminate();
 }
 
