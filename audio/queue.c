@@ -4,49 +4,146 @@
 
 #include <sys/time.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
 #include "queue.h"
+#include "memory.h"
 
-PyObject* audio_queue_push(QueueObject* self, PyObject* value)
+#define INITIAL_RESULT_CAPACITY 8
+
+static inline int fft_result_grow(fft_result_t* result);
+static PyObject* AudioQueue_Pop(AudioQueueObject* self, PyObject* unused);
+static void audio_queue_dealloc(AudioQueueObject* self);
+static PyObject* _unpack_fft_result(fft_result_t* result,
+    user_data_wake_cb waker);
+
+fft_result_t* fft_result_create(void)
 {
-    queue_node_t* node = PyMem_New(queue_node_t, 1);
-    if (node == NULL) {
-        // well shit, I thought we had modern computers
-        return PyErr_NoMemory();
+    fft_result_t* result = (fft_result_t*) calloc(1, sizeof(fft_result_t));
+    if (result != NULL) {
+        debug_malloc(result, "FFT result");
+        result->length = 0;
+        result->capacity = INITIAL_RESULT_CAPACITY;
+        result->buckets = calloc(result->capacity, sizeof(bucket_t));
+        result->next = NULL;
+        
+        if (result->buckets == NULL) {
+            debug_free(result, "FFT result");
+            free(result);
+            return NULL;
+        } else {
+            debug_malloc(result->buckets, "FFT result buckets");
+            fprintf(stderr, "capacity: %lu; length: %lu\n", result->capacity,
+                result->length);
+        }
     }
-    
-    Py_XINCREF(value);
-    
-    Py_BEGIN_ALLOW_THREADS
-    node->value = value;
-    node->next = NULL;
-    
-    pthread_mutex_lock(&self->mutex);
-    if (self->tail == NULL) {
-        self->head = self->tail = node;
-    } else {
-        self->tail->next = node;
-        self->tail = node;
-    }
-    self->length++;
-    pthread_cond_broadcast(&self->condition);
-    pthread_mutex_unlock(&self->mutex);
-    Py_END_ALLOW_THREADS
-    
-    Py_RETURN_NONE;
+    return result;
 }
 
-PyObject* audio_queue_pop(QueueObject* self, PyObject* nada)
-{   
+void fft_result_destroy(fft_result_t* result)
+{
+    if (result != NULL) {
+        if (result->buckets != NULL) {
+            debug_free(result->buckets, "FFT result buckets");
+            free(result->buckets);
+            result->buckets = NULL;
+        }
+        debug_free(result, "FFT result");
+        free(result);
+    }
+}
+
+int fft_result_append(fft_result_t* result, double time_offset,
+    double frequency, double intensity, const void* user_data)
+{
+    if (result->length >= result->capacity) {
+        if (!fft_result_grow(result))
+            return -1;
+    }
+    
+    bucket_t* bucket = (result->buckets + result->length);
+    result->length++;
+    
+    bucket->offset = time_offset;
+    bucket->frequency = frequency;
+    bucket->intensity = intensity;
+    bucket->user_data = user_data;
+    
+    return 0;
+}
+
+static inline int fft_result_grow(fft_result_t* result) {
+    size_t new_capacity = result->capacity + (result->capacity / 2);
+    
+    bucket_t* new_buckets = realloc(result->buckets,
+        sizeof(bucket_t) * new_capacity);
+    if (new_buckets == NULL) {
+        free(result->buckets);
+        result->buckets = NULL;
+        return 0;
+    }
+    
+    result->buckets = new_buckets;
+    return 1;
+}
+
+AudioQueueObject* audio_queue_create(user_data_wake_cb data_waker)
+{
+    AudioQueueObject* queue =
+        (AudioQueueObject*) AudioQueueType.tp_alloc(&AudioQueueType, 0);
+    
+    if (queue != NULL) {
+        debug_malloc(queue, "audio result queue");
+        fprintf(stderr, "  reference count: %ld\n", queue->ob_refcnt);
+        if (pthread_mutex_init(&queue->mutex, NULL) != 0) {
+            Py_DECREF(queue);
+            PyErr_SetFromErrno(PyExc_OSError);
+            return NULL;
+        }
+
+        if (pthread_cond_init(&queue->condition, NULL) != 0) {
+            pthread_mutex_destroy(&queue->mutex);
+
+            Py_DECREF(queue);
+            PyErr_SetFromErrno(PyExc_OSError);
+            return NULL;
+        }
+        
+        queue->waker = data_waker;
+        queue->length = 0;
+        queue->head = queue->tail = NULL;
+    }
+    
+    return queue;
+}
+
+void audio_queue_push(AudioQueueObject* queue, fft_result_t* result)
+{
+    pthread_mutex_lock(&queue->mutex);
+    if (queue->tail == NULL) {
+        queue->head = queue->tail = result;
+    } else {
+        queue->tail->next = result;
+        queue->tail = result;
+    }
+    queue->length++;
+    pthread_cond_signal(&queue->condition);
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+static PyObject* AudioQueue_Pop(AudioQueueObject* self, PyObject* unused)
+{
     PyThreadState* _save;
     struct timeval now;
     struct timespec timeout_point;
     int result = 0;
-    PyObject* value;
+    fft_result_t* fft_result;
     
     Py_UNBLOCK_THREADS
     
     pthread_mutex_lock(&self->mutex);
-    while (self->head == NULL) {
+    while (self->head == NULL && !self->no_memory) {
         gettimeofday(&now, NULL);
         timeout_point.tv_sec = now.tv_sec;
         timeout_point.tv_nsec = (now.tv_usec * 1000) + 500000000;
@@ -59,79 +156,115 @@ PyObject* audio_queue_pop(QueueObject* self, PyObject* nada)
         result = pthread_cond_timedwait(&self->condition, &self->mutex,
             &timeout_point);
         
-        Py_BLOCK_THREADS
-        if (PyErr_CheckSignals() != 0) {
-            pthread_mutex_unlock(&self->mutex);
-            return NULL;
-        }
-        
         if (result != 0 && result != ETIMEDOUT) {
-            PyErr_SetObject(PyExc_OSError,
-                Py_BuildValue("(i, s)", result,
-                    "Failed to wait for condition to be signalled"));
+            pthread_mutex_unlock(&self->mutex);
+            Py_BLOCK_THREADS
+            
+            if (PyErr_CheckSignals() == 0) {
+                PyErr_SetObject(PyExc_OSError,
+                    Py_BuildValue("(i, O)", result, PyString_FromFormat(
+                    "Failed to wait for new item: %s",strerror(result))));
+            }
             return NULL;
+        } else if (result == 0) {
+            Py_BLOCK_THREADS
+            
+            if (PyErr_CheckSignals() != 0) {
+                pthread_mutex_unlock(&self->mutex);
+                return NULL;
+            } else {
+                Py_UNBLOCK_THREADS
+            }
         }
-        
-        Py_UNBLOCK_THREADS
     }
     
-    value = self->head->value;
-    self->head = self->head->next;
+    if (self->no_memory) {
+        return PyErr_NoMemory();
+    }
+    
+    fft_result = self->head;
+    self->head = fft_result->next;
     if (self->head == NULL)
         self->tail = NULL;
     self->length--;
     
     pthread_mutex_unlock(&self->mutex);
-    
     Py_BLOCK_THREADS
-    return value;
-}
-
-Py_ssize_t audio_queue_length(QueueObject* self)
-{
-    return self->length;
-}
-
-static PyObject* audio_queue_new(PyTypeObject* type, PyObject* args,
-    PyObject* kwargs)
-{
-    QueueObject* self;
     
-    self = (QueueObject*) type->tp_alloc(type, 0);
-    if (self != NULL) {
-        if (pthread_mutex_init(&self->mutex, NULL) != 0) {
-            Py_DECREF(self);
-            PyErr_SetFromErrno(PyExc_OSError);
+    return _unpack_fft_result(fft_result, self->waker);
+}
+
+static PyObject* _unpack_fft_result(fft_result_t* result,
+    user_data_wake_cb waker)
+{
+    Py_ssize_t length = result->length;
+    PyObject* result_list = PyList_New(length);
+    PyObject* tuple;
+    Py_ssize_t i;
+    bucket_t* bucket = result->buckets;
+    
+    if (result_list == NULL) {
+        free(result->buckets);
+        free(result);
+        return NULL;
+    }
+    
+    for (i = 0; i < length; i++) {
+        tuple = PyTuple_New(4);
+        
+        if (tuple == NULL) {
+            Py_DECREF(result_list);
+            free(result->buckets);
+            free(result);
             return NULL;
         }
         
-        if (pthread_cond_init(&self->condition, NULL) != 0) {
-            pthread_mutex_destroy(&self->mutex);
-            
-            Py_DECREF(self);
-            PyErr_SetFromErrno(PyExc_OSError);
-            return NULL;
+        /* timing information is not yet provided
+        PyTuple_SET_ITEM(tuple, 0, PyFloat_FromDouble(bucket->offset));
+        */
+        PyTuple_SET_ITEM(tuple, 0, Py_None);
+        PyTuple_SET_ITEM(tuple, 1, PyFloat_FromDouble(bucket->frequency));
+        PyTuple_SET_ITEM(tuple, 2, PyFloat_FromDouble(bucket->intensity));
+
+        if (waker != NULL && bucket->user_data != NULL) {
+            PyTuple_SET_ITEM(tuple, 3, waker(bucket->user_data));
+        } else {
+            PyTuple_SET_ITEM(tuple, 3, Py_None);
         }
+        
+        PyList_SET_ITEM(result_list, i, tuple);
+        bucket++;
     }
     
-    return (PyObject*) self;
+    free(result->buckets);
+    free(result);
+    return result_list;
 }
 
-int audio_queue_init(QueueObject* self, PyObject* args, PyObject* kwargs)
+Py_ssize_t audio_queue_length(AudioQueueObject* queue)
 {
-    self->length = 0;
+    return queue->length;
+}
+
+void audio_queue_signal_oom(AudioQueueObject* queue)
+{
+    queue->no_memory = 1;
+}
+
+int audio_queue_init(AudioQueueObject* self, PyObject* args, PyObject* kwargs)
+{
     return 0;
 }
 
-static void audio_queue_dealloc(QueueObject* self)
+static void audio_queue_dealloc(AudioQueueObject* self)
 {
+    fprintf(stderr, "Deallocating a queue.\n");
     pthread_mutex_lock(&self->mutex);
-    queue_node_t* node = self->head;
-    queue_node_t* next;
+    fft_result_t* node = self->head;
+    fft_result_t* next;
     while (node) {
-        Py_XDECREF(node->value);
         next = node->next;
-        PyMem_Free(node);
+        free(node);
         node = next;
     }
     pthread_mutex_unlock(&self->mutex);
@@ -140,12 +273,11 @@ static void audio_queue_dealloc(QueueObject* self)
     pthread_mutex_destroy(&self->mutex);
     
     self->ob_type->tp_free(self);
+    debug_free(self, "audio result queue");
 }
 
 static PyMethodDef audio_queue_methods[] = {
-    {"push", (PyCFunction) audio_queue_push, METH_O,
-        "Push an item onto the queue"},
-    {"pop", (PyCFunction) audio_queue_pop, METH_NOARGS,
+    {"pop", (PyCFunction) AudioQueue_Pop, METH_NOARGS,
         "Pop an item from the queue, blocking until one is available"},
     {NULL} // sentinel
 };
@@ -163,11 +295,11 @@ static PySequenceMethods audio_queue_as_sequence = {
     0,                                /* sq_inplace_repeat */
 };
 
-PyTypeObject QueueType = {
+PyTypeObject AudioQueueType = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "audio.Queue",             /*tp_name*/
-    sizeof(QueueObject),/*tp_basicsize*/
+    sizeof(AudioQueueObject),  /*tp_basicsize*/
     0,                         /*tp_itemsize*/
     (destructor)audio_queue_dealloc, /*tp_dealloc*/
     0,                         /*tp_print*/
@@ -184,8 +316,8 @@ PyTypeObject QueueType = {
     0,                         /*tp_getattro*/
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
-    "A blocking FIFO queue.",  /* tp_doc */
+    Py_TPFLAGS_DEFAULT,        /*tp_flags*/
+    "A queue for FFT Data.",   /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -202,5 +334,6 @@ PyTypeObject QueueType = {
     0,                         /* tp_dictoffset */
     (initproc)audio_queue_init,      /* tp_init */
     0,                         /* tp_alloc */
-    audio_queue_new,                 /* tp_new */
+    /* Don't let Python code create Queue objects: */
+    0,                         /* tp_new */
 };

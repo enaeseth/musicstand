@@ -26,7 +26,7 @@ PyMODINIT_FUNC initaudio(void) {
     DeviceType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&DeviceType) < 0)
         return;
-    if (PyType_Ready(&QueueType) < 0)
+    if (PyType_Ready(&AudioQueueType) < 0)
         return;
     if (PyType_Ready(&ListenerType) < 0)
         return;
@@ -51,8 +51,8 @@ PyMODINIT_FUNC initaudio(void) {
     Py_INCREF(&DeviceType);
     PyModule_AddObject(module, "Device", (PyObject*) &DeviceType);
     
-    Py_INCREF(&QueueType);
-    PyModule_AddObject(module, "Queue", (PyObject*) &QueueType);
+    Py_INCREF(&AudioQueueType);
+    PyModule_AddObject(module, "Queue", (PyObject*) &AudioQueueType);
     
     Py_INCREF(&ListenerType);
     PyModule_AddObject(module, "Listener", (PyObject*) &ListenerType);

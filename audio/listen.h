@@ -44,7 +44,7 @@ typedef struct {
     ringbuffer_t staging_buffer;
     fft_sample_t* fft_buffer;
     fft_sample_t* fft_result_buffer;
-    QueueObject* result_queue;
+    AudioQueueObject* result_queue;
 } ListenerObject;
 
 extern PyTypeObject ListenerType;

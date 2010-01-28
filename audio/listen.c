@@ -276,7 +276,7 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
     
     Py_BLOCK_THREADS
     
-    self->result_queue = PyObject_New(QueueObject, &QueueType);
+    self->result_queue = audio_queue_create(NULL);
     if (self->result_queue == NULL) {
         pthread_mutex_unlock(&self->sync);
         return PyErr_NoMemory();
@@ -384,6 +384,24 @@ static int audio_listener_callback(const void *input, void *unused,
     return paContinue; // OK
 }
 
+static inline double get_reference(size_t window_size, fft_sample_t* results)
+{
+    // XXX: I don't actually have any idea what I'm doing here.
+    fft_sample_t total = 0.0;
+    fft_sample_t* sample;
+    size_t i;
+    
+    for (sample = results, i = 0; i < window_size; i++, sample++)
+        total += *sample;
+    
+    return 0.75 * (total / (double) window_size);
+}
+
+static inline double value_as_decibel(double value, double reference)
+{
+    return 10.0 * log10(value / reference);
+}
+
 static void* audio_listener_analyze(void* data)
 {
     ListenerObject* self = (ListenerObject*) data;
@@ -391,6 +409,7 @@ static void* audio_listener_analyze(void* data)
     size_t peek_size = sizeof(sample_t) * self->window_size;
     size_t advance_size = sizeof(sample_t) * self->interval;
     sample_t* peek_dest;
+    double db_reference;
 
 #ifdef SINGLE_PRECISION_FFT
     peek_dest = self->fft_buffer;
@@ -417,9 +436,10 @@ static void* audio_listener_analyze(void* data)
 #endif
 
     double frequency;
+    fft_sample_t sample;
     size_t i;
-    sample_t sample;
-    int found;
+    fft_result_t* result;
+    int append_result;
     
     while (self->active > 0) {
         read = ringbuffer_peek(self->staging_buffer, peek_dest, peek_size);
@@ -440,25 +460,34 @@ static void* audio_listener_analyze(void* data)
         //     read / sizeof(sample_t));
         
         _fft_execute(self->plan);
-
-        found = 0;
+        
+        db_reference = get_reference(self->window_size,
+            self->fft_result_buffer);
+        
+        result = fft_result_create();
+        if (result == NULL) {
+            audio_queue_signal_oom(self->result_queue);
+            self->active = 0;
+            break;
+        }
+        
         for (i = 0; i < self->window_size; i++) {
             frequency = self->sample_rate * ((double) i) / self->window_size;
             sample = self->fft_result_buffer[i];
-            if (frequency >= 120.0 && frequency <= 140.0 && fabs(sample) >= 3.0) {
-                fprintf(stderr, "%.02fHz: %.04f\n",
-                    frequency,
-                    fabs(sample));
-                found++;
+            
+            append_result = fft_result_append(result, 0.0 /* XXX */, frequency,
+                value_as_decibel(sample, db_reference), NULL);
+            if (append_result != 0) {
+                audio_queue_signal_oom(self->result_queue);
+                self->active = 0;
+                break;
             }
         }
-        
-        if (found > 0)
-            fprintf(stderr, "\n");
-        
-        // 0 .. n-1
-        // i / sample_rate
     }
+
+#ifndef SINGLE_PRECISION_FFT
+    _fft_free(short_samples);
+#endif
     
     pthread_exit(NULL);
 }
