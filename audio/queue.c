@@ -22,20 +22,14 @@ fft_result_t* fft_result_create(void)
 {
     fft_result_t* result = (fft_result_t*) calloc(1, sizeof(fft_result_t));
     if (result != NULL) {
-        debug_malloc(result, "FFT result");
         result->length = 0;
         result->capacity = INITIAL_RESULT_CAPACITY;
         result->buckets = calloc(result->capacity, sizeof(bucket_t));
         result->next = NULL;
         
         if (result->buckets == NULL) {
-            debug_free(result, "FFT result");
             free(result);
             return NULL;
-        } else {
-            debug_malloc(result->buckets, "FFT result buckets");
-            fprintf(stderr, "capacity: %lu; length: %lu\n", result->capacity,
-                result->length);
         }
     }
     return result;
@@ -45,11 +39,9 @@ void fft_result_destroy(fft_result_t* result)
 {
     if (result != NULL) {
         if (result->buckets != NULL) {
-            debug_free(result->buckets, "FFT result buckets");
             free(result->buckets);
             result->buckets = NULL;
         }
-        debug_free(result, "FFT result");
         free(result);
     }
 }
@@ -74,7 +66,7 @@ int fft_result_append(fft_result_t* result, double time_offset,
 }
 
 static inline int fft_result_grow(fft_result_t* result) {
-    size_t new_capacity = result->capacity + (result->capacity / 2);
+    size_t new_capacity = result->capacity + (result->capacity * 3 / 4);
     
     bucket_t* new_buckets = realloc(result->buckets,
         sizeof(bucket_t) * new_capacity);
@@ -84,6 +76,7 @@ static inline int fft_result_grow(fft_result_t* result) {
         return 0;
     }
     
+    result->capacity = new_capacity;
     result->buckets = new_buckets;
     return 1;
 }
@@ -94,8 +87,6 @@ AudioQueueObject* audio_queue_create(user_data_wake_cb data_waker)
         (AudioQueueObject*) AudioQueueType.tp_alloc(&AudioQueueType, 0);
     
     if (queue != NULL) {
-        debug_malloc(queue, "audio result queue");
-        fprintf(stderr, "  reference count: %ld\n", queue->ob_refcnt);
         if (pthread_mutex_init(&queue->mutex, NULL) != 0) {
             Py_DECREF(queue);
             PyErr_SetFromErrno(PyExc_OSError);
@@ -222,6 +213,7 @@ static PyObject* _unpack_fft_result(fft_result_t* result,
         /* timing information is not yet provided
         PyTuple_SET_ITEM(tuple, 0, PyFloat_FromDouble(bucket->offset));
         */
+        Py_INCREF(Py_None);
         PyTuple_SET_ITEM(tuple, 0, Py_None);
         PyTuple_SET_ITEM(tuple, 1, PyFloat_FromDouble(bucket->frequency));
         PyTuple_SET_ITEM(tuple, 2, PyFloat_FromDouble(bucket->intensity));
@@ -229,6 +221,7 @@ static PyObject* _unpack_fft_result(fft_result_t* result,
         if (waker != NULL && bucket->user_data != NULL) {
             PyTuple_SET_ITEM(tuple, 3, waker(bucket->user_data));
         } else {
+            Py_INCREF(Py_None);
             PyTuple_SET_ITEM(tuple, 3, Py_None);
         }
         
@@ -236,8 +229,7 @@ static PyObject* _unpack_fft_result(fft_result_t* result,
         bucket++;
     }
     
-    free(result->buckets);
-    free(result);
+    fft_result_destroy(result);
     return result_list;
 }
 
@@ -258,7 +250,6 @@ int audio_queue_init(AudioQueueObject* self, PyObject* args, PyObject* kwargs)
 
 static void audio_queue_dealloc(AudioQueueObject* self)
 {
-    fprintf(stderr, "Deallocating a queue.\n");
     pthread_mutex_lock(&self->mutex);
     fft_result_t* node = self->head;
     fft_result_t* next;
@@ -273,7 +264,6 @@ static void audio_queue_dealloc(AudioQueueObject* self)
     pthread_mutex_destroy(&self->mutex);
     
     self->ob_type->tp_free(self);
-    debug_free(self, "audio result queue");
 }
 
 static PyMethodDef audio_queue_methods[] = {

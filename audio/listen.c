@@ -426,7 +426,6 @@ static void* audio_listener_analyze(void* data)
 #else
     self->active = (short_samples != NULL) ? 1 : -2;
 #endif
-    fprintf(stderr, "Activated analysis thread: %d.\n", self->active);
     pthread_cond_broadcast(&self->ready_for_fft);
     pthread_mutex_unlock(&self->sync);
 
@@ -483,6 +482,8 @@ static void* audio_listener_analyze(void* data)
                 break;
             }
         }
+        
+        audio_queue_push(self->result_queue, result);
     }
 
 #ifndef SINGLE_PRECISION_FFT
