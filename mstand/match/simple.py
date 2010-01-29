@@ -37,6 +37,8 @@ class SimpleAlgorithm(Algorithm):
                 # treat it as silence (XXX: is that the right thing to do?)
                 new_notes = []
         
+        print [unparse_note(*note) for note in new_notes]
+        
         # if self.miss_count >= 4:
         #     staff = [i.notes[0][1] for i in self.matcher.intervals]
         #     self.miss_count = 0
@@ -77,9 +79,9 @@ class SimpleAlgorithm(Algorithm):
                 self.miss_count = max(self.miss_count - (i + 1), 0)
                 break
         else:
-            if new_note != self.last_notes and not was_subset:
+            if new_notes != self.last_notes and not was_subset:
                 self.miss_count += 1
         
         self.debug('miss count is now %d' % self.miss_count)
-        self.last_notes = new_note
+        self.last_notes = new_notes
         return self.current_location

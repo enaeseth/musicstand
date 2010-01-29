@@ -8,7 +8,8 @@ class Analyzer(object):
     Gets samples from a monitor and finds audio frequencies in them.
     """
     
-    def __init__(self, callback, window_size, interval, fft_min_power=0):
+    def __init__(self, callback, window_size, interval, fft_min_power=0,
+                 sample_rate=44100):
         self.callback = callback
         self.window_size = window_size
         self.interval = interval
@@ -19,13 +20,14 @@ class Analyzer(object):
         self.sender_pool = None
         self.running = False
         self.min_power = fft_min_power
+        self.sample_rate = sample_rate
     
     def start(self, monitor):
         self.monitor = monitor
         self.running = True
         
-        self.analyzer_pool = ThreadPool()
-        self.sender_pool = ThreadPool()
+        self.analyzer_pool = ThreadPool(1)
+        self.sender_pool = ThreadPool(1)
         self.slicer_thread = Thread(name='Slicer', target=self._run)
         self.slicer_thread.start()
     
@@ -66,12 +68,13 @@ class Analyzer(object):
         self.monitor.stop()
         self.analyzer_pool.shutdown()
         self.sender_pool.shutdown()
-        print "Exiting analyzer."
+        # print "Exiting analyzer."
     
     def _analyze(self, samples):
         def perform_analysis():
             #print len(samples), samples[0]
-            results = fft.fft(samples, self.min_power)
+            results = fft.fft(samples, self.min_power,
+                sample_rate=self.sample_rate)
             if results:
                 self._send_results(results)
             else:

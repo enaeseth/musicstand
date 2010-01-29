@@ -13,13 +13,14 @@ class Monitor(object):
     todo
     """
     
-    DEFAULT_SAMPLE_RATE = 44100
+    DEFAULT_SAMPLE_RATE = (44100)
     
     def __init__(self, chunk_size, device_index=None, sample_rate=None):
         self.pya = PyAudio()
         
+        self.sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
         self.stream = self.pya.open(format=paInt16, channels=1, input=True,
-            rate=sample_rate or self.DEFAULT_SAMPLE_RATE,
+            rate=self.sample_rate,
             frames_per_buffer=chunk_size,
             input_device_index=device_index)
         self.chunk_size = chunk_size
@@ -49,7 +50,7 @@ class Monitor(object):
         self.stream.close()
         self.stream = None
         self.pya.terminate()
-        print "Exiting monitor."
+        # print "Exiting monitor."
     
     def _monitor(self):
         while self.running:

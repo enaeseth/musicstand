@@ -387,19 +387,20 @@ static int audio_listener_callback(const void *input, void *unused,
 static inline double get_reference(size_t window_size, fft_sample_t* results)
 {
     // XXX: I don't actually have any idea what I'm doing here.
-    fft_sample_t total = 0.0;
+    double total = 0.0;
     fft_sample_t* sample;
     size_t i;
     
     for (sample = results, i = 0; i < window_size; i++, sample++)
         total += *sample;
     
-    return 0.75 * (total / (double) window_size);
+    return 5.0 * fabs(total / (double) window_size);
 }
 
 static inline double value_as_decibel(double value, double reference)
 {
-    return 10.0 * log10(value / reference);
+    return value;
+    // return 10.0 * log10(value / reference);
 }
 
 static void* audio_listener_analyze(void* data)
@@ -462,6 +463,7 @@ static void* audio_listener_analyze(void* data)
         
         db_reference = get_reference(self->window_size,
             self->fft_result_buffer);
+        // fprintf(stderr, "reference value: %f\n", db_reference);
         
         result = fft_result_create();
         if (result == NULL) {
@@ -475,7 +477,7 @@ static void* audio_listener_analyze(void* data)
             sample = self->fft_result_buffer[i];
             
             append_result = fft_result_append(result, 0.0 /* XXX */, frequency,
-                value_as_decibel(sample, db_reference), NULL);
+                value_as_decibel(fabs(sample), db_reference), NULL);
             if (append_result != 0) {
                 audio_queue_signal_oom(self->result_queue);
                 self->active = 0;

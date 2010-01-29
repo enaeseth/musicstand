@@ -30,8 +30,8 @@ def main(filename, algorithm, window_size, interval, debug=False):
         measure_changed = (matcher.previous_interval is None or
             matcher.previous_interval.measure != current_measure)
         
-        if measure_changed:
-            open_page(filename, current_measure, cache_dir)
+        # if measure_changed:
+            # open_page(filename, current_measure, cache_dir)
         if matcher.current_location >= (len(matcher.intervals) - 1):
             print 'Done with the piece!'
             matcher.shutdown()
@@ -39,7 +39,8 @@ def main(filename, algorithm, window_size, interval, debug=False):
     print "Starting audio analysis (dun dun dun...)"
     matcher = Matcher(notes, algorithm, position_changed, debug)
     monitor = Monitor(min(window_size, 1024))
-    analyzer = Analyzer(matcher.add, window_size, interval, 40000000)
+    analyzer = Analyzer(matcher.add, window_size, interval, 40000000,
+        monitor.sample_rate)
     analyzer.start(monitor)
     
     matcher.start()

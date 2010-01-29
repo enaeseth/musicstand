@@ -82,6 +82,7 @@ def parse_file(filename):
 				
 		if not found_notes:
 			notes_pos += 1
+	print notes
 	
 	file.close()
 	octavo = 4
@@ -90,6 +91,7 @@ def parse_file(filename):
 	number = 1
 	chord = False
 	for note in notes:
+		print note
 		if note == "<":
 			chord = True
 		elif note == ">":
@@ -110,6 +112,7 @@ def parse_file(filename):
 			if not chord:
 				measure += (float(this_note.duration))
 			duration = this_note.duration
+	
 	
 	cache_dir = get_cache_dir(filename)
 	# print cache_dir, os.path.exists(cache_dir)
@@ -201,6 +204,7 @@ def parse_file(filename):
 		
 		os.system('"%s" "%s"' % (lilypond_path, new_path))
 	
+	print 'big:', big_note_array
 	return (big_note_array, cache_dir)
 	
 def find_octave(prevnote, curnote):
