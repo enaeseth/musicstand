@@ -178,6 +178,7 @@ def parse_file(filename):
 				
 				# write the colored notes
 				while i < start+num_notes:
+					sys.stdout(list[i])
 					outfile.write(list[i] + " ")
 					if not list[i][0].isalpha():
 						print list[i]

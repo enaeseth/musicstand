@@ -45,51 +45,53 @@ def add_multiple(pitch):
     return (octave, new_pitch, new_acc)
 
 def parse_file(filename):
-    notes = []
-    ppq = 0
-    time_sig = 0
-    on_note_list = {}
-    notes_by_start_time = {}
-    big_note_array = []
-    the_file = open(filename,'r')
-    for line in the_file:
-        line_list = line.split()
-        if len(line_list) > 1 and line_list[1] == "TimeSig":
-            time_sig = [int(line_list[2].split('/')[0]), int(line_list[2].split('/')[1])]
-            ppq = ppq*4/time_sig[1]
+	os.system("./mf2t "+filename + ".midi > "+filename+".txt")
+	filename = filename+".txt"
+	notes = []
+	ppq = 0
+	time_sig = 0
+	on_note_list = {}
+	notes_by_start_time = {}
+	big_note_array = []
+	the_file = open(filename,'r')
+	for line in the_file:
+		print line
+		line_list = line.split()
+		if len(line_list) > 1 and line_list[1] == "TimeSig":
+			time_sig = [int(line_list[2].split('/')[0]), int(line_list[2].split('/')[1])]
+			ppq = ppq*4/time_sig[1]
 
-        elif len(line_list) > 1 and line_list[0] == "MFile":
-            ppq = int(line_list[3])
+		elif len(line_list) > 1 and line_list[0] == "MFile":
+			ppq = int(line_list[3])
 
-        elif len(line_list) > 1 and line_list[1] == "On":
-            pitch = int(line_list[3].split('=')[1])
-            on_note_list[pitch] = int(line_list[0])
+		elif len(line_list) > 1 and line_list[1] == "On":
+			pitch = int(line_list[3].split('=')[1])
+			on_note_list[pitch] = int(line_list[0])
 
-        elif len(line_list) > 1 and line_list[1] == "Off":
-            pitch = int(line_list[3].split('=')[1])
-            start_time = on_note_list.pop(pitch)
-            end_time = int(line_list[0])
-            if start_time in notes_by_start_time:
-                    note = notes_by_start_time.get(start_time)
-                    note[3].append(add_multiple(pitch))
-            else:
-                    new_note = Note(((start_time/ppq)/time_sig[0])+1, (float(end_time-start_time)/ppq), ((float(start_time)/ppq))%time_sig[1]+1)
-                    new_note.pitch_to_note(pitch)
-                    new_note.note_to_dict(notes_by_start_time, start_time)
+		elif len(line_list) > 1 and line_list[1] == "Off":
+			pitch = int(line_list[3].split('=')[1])
+			start_time = on_note_list.pop(pitch)
+			end_time = int(line_list[0])
+			if start_time in notes_by_start_time:
+					note = notes_by_start_time.get(start_time)
+					note[3].append(add_multiple(pitch))
+			else:
+				new_note = Note(((start_time/ppq)/time_sig[0])+1, (float(end_time-start_time)/ppq), ((float(start_time)/ppq))%time_sig[1]+1)
+				new_note.pitch_to_note(pitch)
+				new_note.note_to_dict(notes_by_start_time, start_time)
                     
-    list_of_keys = notes_by_start_time.keys()
-    list_of_keys.sort()
-    for i in list_of_keys:
-        big_note_array.append(notes_by_start_time[i])
-    return big_note_array
+	list_of_keys = notes_by_start_time.keys()
+	list_of_keys.sort()
+	for i in list_of_keys:
+		big_note_array.append(notes_by_start_time[i])
+	return big_note_array
 
 def masterMethod(filename):
-        os.system("mf2t "+filename + ".midi > "+filename+".txt")
+        os.system("./mf2t "+filename + ".midi > "+filename+".txt")
         return parse_file(filename+".txt")
 
 if __name__ == '__main__':
 	filename = sys.argv[1]
-        os.system("mf2t "+filename + ".midi > "+filename+".txt")
-        notes = parse_file(filename+".txt")
+	notes = parse_file(filename)
 	for item in notes:
 		print item
