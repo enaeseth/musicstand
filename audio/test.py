@@ -6,23 +6,26 @@ import time
 if __name__ == '__main__':
     # input_devices = [d for d in audio.get_devices() if d.input_channels > 0]
     
+    filters = [
+        audio.CutoffFilter(4200.0),
+        audio.CoalesceFilter()
+    ]
+    
     listener = audio.Listener(window_size=4096*2, interval=1024,
-            filters=[audio.CutoffFilter(4200.0)])
+        filters=filters)
     
     queue = listener.start()
     while True:
         try:
             offset, buckets, data = queue.pop()
-            notable = []
+            good = 0
             for freq, intensity in buckets:
-                if intensity >= 5.0:
-                    notable.append(freq)
-            
-            if len(notable) > 0:
-                for freq, intensity in buckets:
-                    if any(abs(nf - freq) <= 5.0 for nf in notable):
-                        print "%.02f:\t%.03f" % (freq, intensity)
-                print '-' * 40
+                if intensity >= 20.0:
+                    good += 1
+                    bar = '=' * int(40 * (intensity / 110.0))
+                    print "%6.01f:   %6.02f %s" % (freq, intensity, bar)
+            if good > 0:
+                print
         except KeyboardInterrupt:
             print
             listener.stop()

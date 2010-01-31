@@ -44,6 +44,7 @@ FilterObject* PythonFilter_FromCallable(PyObject* impl);
 extern PyTypeObject FilterType;
 extern PyTypeObject PythonFilterType;
 extern PyTypeObject CutoffFilterType;
+extern PyTypeObject CoalesceFilterType;
 
 #define FilterType_SUBCLASS(name, methods, doc) \
      PyTypeObject name ## Type = { \
