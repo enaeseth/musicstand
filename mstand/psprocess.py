@@ -132,7 +132,7 @@ def convert_units(all_bar_lines, PAGE_HEIGHT, PAGE_WIDTH, STAFF_HEIGHT):
                 line_position = (posy_percent, posy_percent + STAFF_HEIGHT/PAGE_HEIGHT)
                 temp_line_positions.append(line_position)
                 top_of_line = posy_percent
-
+			
     # If any of the PS variables are still zero, we have a problem. Exit.
     except ZeroDivisionError, e:
         sys.exit(1)
