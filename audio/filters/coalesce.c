@@ -143,7 +143,7 @@ static inline int allocate_source_list(bucket_source_list_t** list,
 static inline double get_multiplier(double span, double note,
     double incoming_freq)
 {
-    return fabs(incoming_freq - note) / span;
+    return 1.0 - fabs(incoming_freq - note) / span;
 }
 
 static int map_buckets(CoalesceFilterObject* self, bucket_t* buckets,
