@@ -7,6 +7,7 @@
 #include "devices.h"
 #include "queue.h"
 #include "listen.h"
+#include "filter.h"
 
 static void terminate_portaudio(void);
 
@@ -29,6 +30,11 @@ PyMODINIT_FUNC initaudio(void) {
     if (PyType_Ready(&AudioQueueType) < 0)
         return;
     if (PyType_Ready(&ListenerType) < 0)
+        return;
+    FilterType.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&FilterType) < 0)
+        return;
+    if (PyType_Ready(&PythonFilterType) < 0)
         return;
     
     PaError err = Pa_Initialize();
@@ -56,4 +62,10 @@ PyMODINIT_FUNC initaudio(void) {
     
     Py_INCREF(&ListenerType);
     PyModule_AddObject(module, "Listener", (PyObject*) &ListenerType);
+    
+    Py_INCREF(&FilterType);
+    PyModule_AddObject(module, "Filter", (PyObject*) &FilterType);
+    
+    Py_INCREF(&PythonFilterType);
+    PyModule_AddObject(module, "PythonFilter", (PyObject*) &PythonFilterType);
 }

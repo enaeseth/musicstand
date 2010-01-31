@@ -1,5 +1,9 @@
 /**
- * A fast, thread-safe, blocking, FIFO queue implementation.
+ * A blocking queue specifically for passing FFT results to the upper layers
+ * of the program.
+ *
+ * Uses fine-grained locking, so that the GIL need not be held to execute
+ * a push.
  */
 
 #include <sys/time.h>
@@ -10,22 +14,23 @@
 #include "queue.h"
 #include "memory.h"
 
-#define INITIAL_RESULT_CAPACITY 8
-
 static inline int fft_result_grow(fft_result_t* result);
 static PyObject* AudioQueue_Pop(AudioQueueObject* self, PyObject* unused);
 static void audio_queue_dealloc(AudioQueueObject* self);
 static PyObject* _unpack_fft_result(fft_result_t* result,
     user_data_wake_cb waker);
 
-fft_result_t* fft_result_create(void)
+fft_result_t* fft_result_create(size_t capacity, double time_offset,
+    const void* user_data)
 {
     fft_result_t* result = (fft_result_t*) calloc(1, sizeof(fft_result_t));
     if (result != NULL) {
         result->length = 0;
-        result->capacity = INITIAL_RESULT_CAPACITY;
+        result->capacity = capacity;
         result->buckets = calloc(result->capacity, sizeof(bucket_t));
         result->next = NULL;
+        result->offset = time_offset;
+        result->user_data = user_data;
         
         if (result->buckets == NULL) {
             free(result);
@@ -46,8 +51,8 @@ void fft_result_destroy(fft_result_t* result)
     }
 }
 
-int fft_result_append(fft_result_t* result, double time_offset,
-    double frequency, double intensity, const void* user_data)
+int fft_result_append(fft_result_t* result, double frequency,
+    double intensity)
 {
     if (result->length >= result->capacity) {
         if (!fft_result_grow(result))
@@ -57,10 +62,8 @@ int fft_result_append(fft_result_t* result, double time_offset,
     bucket_t* bucket = (result->buckets + result->length);
     result->length++;
     
-    bucket->offset = time_offset;
     bucket->frequency = frequency;
     bucket->intensity = intensity;
-    bucket->user_data = user_data;
     
     return 0;
 }
@@ -189,48 +192,61 @@ static PyObject* _unpack_fft_result(fft_result_t* result,
     user_data_wake_cb waker)
 {
     Py_ssize_t length = result->length;
-    PyObject* result_list = PyList_New(length);
-    PyObject* tuple;
+    PyObject* result_tuple;
+    PyObject* result_list;
+    PyObject* bucket_tuple;
     Py_ssize_t i;
     bucket_t* bucket = result->buckets;
     
+    result_tuple = PyTuple_New(3);
+    if (result_tuple == NULL) {
+        fft_result_destroy(result);
+        return NULL;
+    }
+    
+    result_list = PyList_New(length);
     if (result_list == NULL) {
-        free(result->buckets);
-        free(result);
+        Py_DECREF(result_tuple);
+        fft_result_destroy(result);
         return NULL;
     }
     
     for (i = 0; i < length; i++) {
-        tuple = PyTuple_New(4);
+        bucket_tuple = PyTuple_New(2);
         
-        if (tuple == NULL) {
+        if (bucket_tuple == NULL) {
+            Py_DECREF(result_tuple);
             Py_DECREF(result_list);
-            free(result->buckets);
-            free(result);
+            fft_result_destroy(result);
             return NULL;
         }
         
-        /* timing information is not yet provided
-        PyTuple_SET_ITEM(tuple, 0, PyFloat_FromDouble(bucket->offset));
-        */
-        Py_INCREF(Py_None);
-        PyTuple_SET_ITEM(tuple, 0, Py_None);
-        PyTuple_SET_ITEM(tuple, 1, PyFloat_FromDouble(bucket->frequency));
-        PyTuple_SET_ITEM(tuple, 2, PyFloat_FromDouble(bucket->intensity));
-
-        if (waker != NULL && bucket->user_data != NULL) {
-            PyTuple_SET_ITEM(tuple, 3, waker(bucket->user_data));
-        } else {
-            Py_INCREF(Py_None);
-            PyTuple_SET_ITEM(tuple, 3, Py_None);
-        }
+        PyTuple_SET_ITEM(bucket_tuple, 0,
+            PyFloat_FromDouble(bucket->frequency));
+        PyTuple_SET_ITEM(bucket_tuple, 1,
+            PyFloat_FromDouble(bucket->intensity));
         
-        PyList_SET_ITEM(result_list, i, tuple);
+        PyList_SET_ITEM(result_list, i, bucket_tuple);
         bucket++;
     }
     
+    /* timing information is not yet provided
+    PyTuple_SET_ITEM(tuple, 0, PyFloat_FromDouble(result->offset));
+    */
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(result_tuple, 0, Py_None);
+    
+    PyTuple_SET_ITEM(result_tuple, 1, result_list);
+    
+    if (waker != NULL && result->user_data != NULL) {
+        PyTuple_SET_ITEM(result_tuple, 2, waker(result->user_data));
+    } else {
+        Py_INCREF(Py_None);
+        PyTuple_SET_ITEM(result_tuple, 2, Py_None);
+    }
+    
     fft_result_destroy(result);
-    return result_list;
+    return result_tuple;
 }
 
 Py_ssize_t audio_queue_length(AudioQueueObject* queue)

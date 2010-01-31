@@ -45,16 +45,18 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
     PyObject* kwargs)
 {
     static char* kwlist[] = {"device", "window_size", "interval",
-        "sample_rate", NULL};
+        "sample_rate", "filters", NULL};
     
     PyObject* device = NULL;
     PaDeviceIndex device_index;
     Py_ssize_t window_size = 4096;
     Py_ssize_t interval = 1024;
     double sample_rate = 0.0;
+    PyObject* filters = NULL;
+    FilterChain* filter_chain = NULL;
     
     int result = PyArg_ParseTupleAndKeywords(args, kwargs, "|Onnd", kwlist,
-        &device, &window_size, &interval, &sample_rate);
+        &device, &window_size, &interval, &sample_rate, &filters);
     if (!result)
         return NULL;
     
@@ -65,7 +67,7 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         return NULL;
     }
     
-    if (device != NULL) {
+    if (device != NULL && device != Py_None) {
         if (!PyObject_TypeCheck(device, &DeviceType)) {
             PyErr_SetString(PyExc_TypeError,
                 "The device parameter must be an audio.Device object");
@@ -79,6 +81,12 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
                 "PortAudio knows no default input device.");
             return NULL;
         }
+    }
+    
+    if (filters != NULL && filters != Py_None) {
+        filter_chain = FilterChain_Prepare(filters);
+        if (filter_chain == NULL)
+            return NULL;
     }
     
     ListenerObject* self = (ListenerObject*) type->tp_alloc(type, 0);
@@ -138,6 +146,7 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
         self->interval_ratio = ((double) interval) / window_size;
         self->sample_rate = sample_rate;
         self->sample_duration = (1 / sample_rate);
+        self->filter_chain = filter_chain;
     }
     
     return (PyObject*) self;
@@ -210,6 +219,10 @@ static void audio_listener_dealloc(ListenerObject* self)
     self->fft_buffer = self->fft_result_buffer = NULL;
     _fft_destroy_plan(self->plan);
     Py_XDECREF(self->result_queue);
+    if (self->filter_chain != NULL) {
+        FilterChain_Destroy(self->filter_chain);
+        self->filter_chain = NULL;
+    }
     
     pthread_cond_destroy(&self->ready_for_fft);
     pthread_mutex_destroy(&self->sync);
@@ -384,23 +397,43 @@ static int audio_listener_callback(const void *input, void *unused,
     return paContinue; // OK
 }
 
-static inline double get_reference(size_t window_size, fft_sample_t* results)
+static fft_result_t* filter_and_create_result(ListenerObject* listener,
+    fft_sample_t* intensities)
 {
-    // XXX: I don't actually have any idea what I'm doing here.
-    double total = 0.0;
-    fft_sample_t* sample;
-    size_t i;
+    double sample_rate = listener->sample_rate;
+    size_t window_size = listener->window_size;
     
-    for (sample = results, i = 0; i < window_size; i++, sample++)
-        total += *sample;
+    fft_result_t* result = fft_result_create(listener->window_size, 0.0, NULL);
+    if (result == NULL)
+        return NULL;
     
-    return 5.0 * fabs(total / (double) window_size);
-}
-
-static inline double value_as_decibel(double value, double reference)
-{
-    return value;
-    // return 10.0 * log10(value / reference);
+    double frequency;
+    fft_sample_t intensity;
+    for (size_t i = 0; i < window_size; i++) {
+        frequency = sample_rate * ((double) i) / window_size;
+        intensity = intensities[i];
+        
+        if (fft_result_append(result, frequency, intensity) != 0) {
+            audio_queue_signal_oom(listener->result_queue);
+            listener->active = 0;
+            fft_result_destroy(result);
+            return NULL;
+        }
+    }
+    
+    if (listener->filter_chain != NULL) {
+        int filter_result = FilterChain_Execute(listener->filter_chain,
+            (size_t*) &result->length, result->buckets);
+        
+        if (filter_result != 0) {
+            fprintf(stderr, "warning: FilterChain_Execute returned %d\n",
+                filter_result);
+            fft_result_destroy(result);
+            return NULL;
+        }
+    }
+    
+    return result;
 }
 
 static void* audio_listener_analyze(void* data)
@@ -410,7 +443,9 @@ static void* audio_listener_analyze(void* data)
     size_t peek_size = sizeof(sample_t) * self->window_size;
     size_t advance_size = sizeof(sample_t) * self->interval;
     sample_t* peek_dest;
-    double db_reference;
+    int gil_required = 0;
+    PyGILState_STATE gil_state;
+    PyThreadState* _save = NULL;
 
 #ifdef SINGLE_PRECISION_FFT
     peek_dest = self->fft_buffer;
@@ -434,12 +469,18 @@ static void* audio_listener_analyze(void* data)
     if (short_samples == NULL)
         pthread_exit(NULL);
 #endif
-
-    double frequency;
-    fft_sample_t sample;
-    size_t i;
+    
+    if (self->filter_chain)
+        gil_required = FilterChain_RequiresGIL(self->filter_chain);
+    
+    if (gil_required) {
+        fprintf(stderr,
+            "warning: frequency filtering requires the Python GIL\n");
+        gil_state = PyGILState_Ensure();
+        Py_UNBLOCK_THREADS
+    }
+    
     fft_result_t* result;
-    int append_result;
     
     while (self->active > 0) {
         read = ringbuffer_peek(self->staging_buffer, peek_dest, peek_size);
@@ -449,40 +490,19 @@ static void* audio_listener_analyze(void* data)
             continue;
         }
         
+        ringbuffer_advance_read(self->staging_buffer, advance_size);
+        
 #ifndef SINGLE_PRECISION_FFT
-        for (i = 0; i < self->window_size; i++) {
+        for (size_t i = 0; i < self->window_size; i++) {
             self->fft_buffer[i] = (double) peek_dest[i];
         }
 #endif
         
-        ringbuffer_advance_read(self->staging_buffer, advance_size);
-        // fprintf(stderr, "Analyzing %lu audio samples.\n",
-        //     read / sizeof(sample_t));
-        
         _fft_execute(self->plan);
         
-        db_reference = get_reference(self->window_size,
-            self->fft_result_buffer);
-        // fprintf(stderr, "reference value: %f\n", db_reference);
-        
-        result = fft_result_create();
+        result = filter_and_create_result(self, self->fft_result_buffer);
         if (result == NULL) {
-            audio_queue_signal_oom(self->result_queue);
-            self->active = 0;
-            break;
-        }
-        
-        for (i = 0; i < self->window_size; i++) {
-            frequency = self->sample_rate * ((double) i) / self->window_size;
-            sample = self->fft_result_buffer[i];
-            
-            append_result = fft_result_append(result, 0.0 /* XXX */, frequency,
-                value_as_decibel(fabs(sample), db_reference), NULL);
-            if (append_result != 0) {
-                audio_queue_signal_oom(self->result_queue);
-                self->active = 0;
-                break;
-            }
+            continue;
         }
         
         audio_queue_push(self->result_queue, result);
@@ -491,6 +511,11 @@ static void* audio_listener_analyze(void* data)
 #ifndef SINGLE_PRECISION_FFT
     _fft_free(short_samples);
 #endif
+    
+    if (gil_required) {
+        Py_BLOCK_THREADS
+        PyGILState_Release(gil_state);
+    }
     
     pthread_exit(NULL);
 }

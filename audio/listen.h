@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include "queue.h"
 #include "ringbuffer.h"
+#include "filter.h"
 
 typedef float sample_t;
 
@@ -45,6 +46,7 @@ typedef struct {
     fft_sample_t* fft_buffer;
     fft_sample_t* fft_result_buffer;
     AudioQueueObject* result_queue;
+    FilterChain* filter_chain;
 } ListenerObject;
 
 extern PyTypeObject ListenerType;

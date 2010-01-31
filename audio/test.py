@@ -11,20 +11,18 @@ if __name__ == '__main__':
     queue = listener.start()
     while True:
         try:
-            buckets = queue.pop()
+            offset, buckets, data = queue.pop()
             notable = []
-            for data in buckets:
-                freq, intensity = data[1:3]
+            for freq, intensity in buckets:
                 if freq >= 4200:
                     break
                 if intensity >= 5.0:
                     notable.append(freq)
             
             if len(notable) > 0:
-                for data in buckets:
-                    freq, intensity = data[1:3]
+                for freq, intensity in buckets:
                     if any(abs(nf - freq) <= 5.0 for nf in notable):
-                        print "%.02f:\t%.03f" % data[1:3]
+                        print "%.02f:\t%.03f" % (freq, intensity)
                 print '-' * 40
         except KeyboardInterrupt:
             print
