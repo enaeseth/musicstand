@@ -58,8 +58,9 @@ static int CutoffFilter_init(CutoffFilterObject* self, PyObject* args,
 
 static PyObject* CutoffFilter_repr(CutoffFilterObject* self)
 {
-    return PyString_FromFormat("%s(maximum=%f)", self->ob_type->tp_name,
+    PyObject* args = Py_BuildValue("(s, d)", self->ob_type->tp_name,
         self->max_frequency);
+    return PyString_Format(PyString_FromString("%s(maximum=%f)"), args);
 }
 
 static void CutoffFilter_dealloc(CutoffFilterObject* self) {
