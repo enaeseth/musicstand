@@ -4,6 +4,7 @@
 
 #include "filter.h"
 #include <string.h>
+#include <stdio.h>
 
 typedef struct {
     FilterObject_HEAD
@@ -96,9 +97,10 @@ int FilterChain_Execute(FilterChain* chain, size_t* length, bucket_t* entries)
             if (result != 0)
                 break;
         }
-        
-        if (lock_held)
+                
+        if (lock_held) {
             PyGILState_Release(state);
+        }
     } else {
         for (i = 0; i < chain->length; i++) {
             result = Filter_Execute(chain->filters[i], length, entries);
@@ -220,8 +222,8 @@ static inline void populate_entry(bucket_t* entries, Py_ssize_t i,
 static int PythonFilter_Defer(PythonFilterObject* filter, size_t* length,
     bucket_t* entries)
 {
-    PyObject* list = PyList_New((Py_ssize_t) length);
     size_t original_length = *length;
+    PyObject* list = PyList_New((Py_ssize_t) original_length);
     
     for (size_t i = 0; i < original_length; i++) {
         bucket_t* entry = (entries + i);

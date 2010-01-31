@@ -49,6 +49,8 @@ PyMODINIT_FUNC initaudio(void) {
         PySys_WriteStderr("Failed to register the PortAudio cleanup function.");
     }
     
+    PyEval_InitThreads();
+    
     module = Py_InitModule3("audio", module_methods,
         "Low-level audio processor");
     if (module == NULL)

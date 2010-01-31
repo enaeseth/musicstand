@@ -55,7 +55,7 @@ static PyObject* audio_listener_new(PyTypeObject* type, PyObject* args,
     PyObject* filters = NULL;
     FilterChain* filter_chain = NULL;
     
-    int result = PyArg_ParseTupleAndKeywords(args, kwargs, "|Onnd", kwlist,
+    int result = PyArg_ParseTupleAndKeywords(args, kwargs, "|OnndO", kwlist,
         &device, &window_size, &interval, &sample_rate, &filters);
     if (!result)
         return NULL;
@@ -218,7 +218,7 @@ static void audio_listener_dealloc(ListenerObject* self)
     self->staging_buffer = NULL;
     self->fft_buffer = self->fft_result_buffer = NULL;
     _fft_destroy_plan(self->plan);
-    Py_XDECREF(self->result_queue);
+    
     if (self->filter_chain != NULL) {
         FilterChain_Destroy(self->filter_chain);
         self->filter_chain = NULL;
@@ -339,6 +339,7 @@ static PyObject* audio_listener_start(ListenerObject* self, PyObject* unused)
     // successful startup!
     pthread_mutex_unlock(&self->sync);
     
+    Py_INCREF(self->result_queue);
     return (PyObject*) self->result_queue;
 }
 
@@ -475,7 +476,7 @@ static void* audio_listener_analyze(void* data)
     
     if (gil_required) {
         fprintf(stderr,
-            "warning: frequency filtering requires the Python GIL\n");
+            "warning: frequency filtering will require the Python GIL\n");
         gil_state = PyGILState_Ensure();
         Py_UNBLOCK_THREADS
     }
