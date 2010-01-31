@@ -31,7 +31,6 @@ PyMODINIT_FUNC initaudio(void) {
         return;
     if (PyType_Ready(&ListenerType) < 0)
         return;
-    FilterType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&FilterType) < 0)
         return;
     if (PyType_Ready(&PythonFilterType) < 0)
