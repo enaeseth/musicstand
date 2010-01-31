@@ -43,6 +43,7 @@ FilterObject* PythonFilter_FromCallable(PyObject* impl);
 
 extern PyTypeObject FilterType;
 extern PyTypeObject PythonFilterType;
+extern PyTypeObject CutoffFilterType;
 
 #define FilterType_SUBCLASS(name, methods, doc) \
      PyTypeObject name ## Type = { \

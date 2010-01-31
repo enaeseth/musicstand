@@ -35,6 +35,8 @@ PyMODINIT_FUNC initaudio(void) {
         return;
     if (PyType_Ready(&PythonFilterType) < 0)
         return;
+    if (PyType_Ready(&CutoffFilterType) < 0)
+        return;
     
     PaError err = Pa_Initialize();
     if (err != paNoError) {
@@ -69,4 +71,7 @@ PyMODINIT_FUNC initaudio(void) {
     
     Py_INCREF(&PythonFilterType);
     PyModule_AddObject(module, "PythonFilter", (PyObject*) &PythonFilterType);
+    
+    Py_INCREF(&CutoffFilterType);
+    PyModule_AddObject(module, "CutoffFilter", (PyObject*) &CutoffFilterType);
 }
