@@ -11,7 +11,7 @@ class MinimumIntensityFilter(object):
         self.threshold = threshold
     
     def __call__(self, samples):
-        return [(f, i) for (f, i) in samples if i >= self.threshold]
+        return [(f, i) for (f, i) in samples if i >= self.threshold or int(f) == 196]
 
 class SmoothFilter(object):
     def __init__(self, memory):
@@ -28,15 +28,31 @@ class SmoothFilter(object):
         
         common_freqs = reduce(operator.and_, self._history)
         return [(f, i) for (f, i) in buckets if f in common_freqs]
-
+        
+class SineFilter(object):
+    def __call__(self, buckets):
+        return [(f, i) for (f, i) in buckets if i/(90*math.sin(f/(60*math.pi) + (3*math.pi)/2)+100) >= 1]
+        
+class LogFilter(object):
+    def __call__(self, buckets):
+        return [(f, i) for (f, i) in buckets if i/(math.log(f+1, 1.1) + 1) >= 1]
+        
+class SquareRootFilter(object):
+    def __call__(self, buckets):
+        return [(f, i) for (f, i) in buckets if i/((f/100)**2) >= 1]
+                
 if __name__ == '__main__':
     # input_devices = [d for d in audio.get_devices() if d.input_channels > 0]
     
     filters = [
         audio.CutoffFilter(4200.0),
+        audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(10.0),
-        SmoothFilter(4)
+        # SineFilter(),
+        # LogFilter(),
+        # SquareRootFilter(),
+        MinimumIntensityFilter(60.0),
+        SmoothFilter(2)
     ]
     
     listener = audio.Listener(window_size=4096*4, interval=1024,
@@ -45,16 +61,13 @@ if __name__ == '__main__':
     queue = listener.start()
     while True:
         try:
-            # if (intensity >= 10 and intensity/(90*math.sin(freq/(60*math.pi) + (3*math.pi)/2)+100) >= 1 and intensity >= buckets[i-1][2] and 
-            # buckets[i-1][2] >= buckets[i-2][2] and intensity >= buckets[i+1][2]):
             offset, buckets, data = queue.pop()
             good = 0
             for freq, intensity in buckets:
-                if intensity >= 10.0:
-                    good += 1
-                    bar = '=' * int(40 * (intensity / 110.0))
-                    print "%6.01f %3s:   %6.02f %s" % (freq,
-                        unparse_note(*freq_to_note(freq)), intensity, bar)
+                good += 1
+                bar = '=' * int(40 * (intensity / 110.0))
+                print "%6.01f %3s:   %6.02f %s" % (freq,
+                    unparse_note(*freq_to_note(freq)), intensity, bar)
             if good > 0:
                 print
         except KeyboardInterrupt:

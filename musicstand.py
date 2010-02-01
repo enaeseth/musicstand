@@ -9,19 +9,18 @@ An intelligent music stand.
 
 from __future__ import with_statement
 
-from mstand.lilypondParser import parse_file as parse_lilypond_file
 from mstand import notes
+from mstand import audio
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
 from mstand.newParser import parse_file
+from mstand.display import Display
 
 import re
 import os
 import sys
-import audio
 import operator
 from Tkinter import Tk
-from display import Display
 from threading import Thread
 from time import sleep
 
@@ -66,7 +65,6 @@ def run(algorithm, listener, debug=False):
         while running[0]:
             try:
                 offset, buckets, data = queue.pop()
-                print len(buckets)
             except KeyboardInterrupt:
                 break
             # XXX: this is dumb

@@ -152,6 +152,9 @@ class Matcher(object):
         times = set()
         
         for note in notes:
+            if note[1] >= 1.0:
+                raise ValueError('interval %r starts %.0f%% of the way '
+                    'through measure %d' % (note, note[1] * 100, note[0]))
             start_time = note[0] + note[1]
             end_time = start_time + note[2]
             times.add(start_time)

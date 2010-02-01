@@ -4,19 +4,21 @@ we start measures at 0!
 
 '''
 
+from __future__ import with_statement
 from Tkinter import *
+from glob import glob
 import os, sys
 import re
 import Image, ImageTk
 import psprocess
 from Queue import Queue, Empty as QueueEmpty
-from mstand.utils import create_lilypond_files
+from songs import *
 
-class Display(object): #what does passing object mean?
+class Display(object):
     def __init__(self, parent, song_loaded, DEBUG=False):
         self.parent = parent
         self.parent.title("Digital Music Stand")
-        self.parent.geometry('+50+25')
+        self.parent.geometry('+50+500')
         self.screen_width = float(self.parent.winfo_screenwidth())
         self.screen_height = float(self.parent.winfo_screenheight())
         self.image_dir = None
@@ -53,6 +55,9 @@ class Display(object): #what does passing object mean?
         present_measure = matcher.current_interval.measure
         
         if self.cur_measure != present_measure:
+            import traceback
+            traceback.print_stack()
+            print '--> Looks like the new measure in town is %d.' % present_measure
             self.updates.put(present_measure)
     
     def check_for_updates(self):
@@ -71,10 +76,7 @@ class Display(object): #what does passing object mean?
         welcome = Label(container, text = "Welcome to \n Digital Music Stand!", \
             font = ("Trebuchet MS", 24))
         
-        file = open(os.path.join(os.path.dirname(__file__), "config.txt"))
-        music = []
-        for line in file:
-            music.append(line.strip())
+        music = get_songs()
         
         music_list = Listbox(container, selectmode = SINGLE)
         for piece in music:
@@ -99,9 +101,9 @@ class Display(object): #what does passing object mean?
         def get_file_entry():
             #need to also get song name and put it somewhere
             lilypond_file = lilypond_entry.get()
-            song_name = new_song_entry.get().lower()
+            song_name = new_song_entry.get()
             folder_name = ''
-            for word in song_name.split():
+            for word in song_name.lower().split():
                 folder_name += word
             create_lilypond_files(lilypond_file, folder_name)
             
@@ -109,6 +111,9 @@ class Display(object): #what does passing object mean?
             self.song_folder = os.path.join('songs', folder_name)
             self.lilypond_file = os.path.join(self.song_folder,
                 os.path.basename(lilypond_file))
+            add_song(song_name)
+            self.load_music(song_name)
+            
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
@@ -130,9 +135,20 @@ class Display(object): #what does passing object mean?
         folder = ''
         for word in title.split():
             folder += word
-        path = os.path.join(os.path.dirname(__file__), 'songs', folder)
-        ps_file = os.path.splitext(self.lilypond_file)[0] + '.ps'
-        self.measure_percents, self.ps_info = psprocess.parse_postscript(ps_file)
+        
+        path = get_song_path(folder)
+        lilies = glob(os.path.join(path, '*.ly'))
+        if not lilies:
+            raise RuntimeError('there are no lilies in %s' % folder)
+        elif len(lilies) > 1:
+            raise RuntimeError('there are too many lilies in %s' % folder)
+        
+        self.lilypond_file = lilies[0]
+        base_filename = os.path.splitext(self.lilypond_file)[0]
+        
+        ps_file = base_filename + '.ps'
+        self.measure_percents, self.ps_info = \
+            psprocess.parse_postscript(ps_file)
         self.staff_height = self.ps_info[0]
         self.line_percents = self.ps_info[2]
         self.image_dir = self.load_images(path)
@@ -333,6 +349,9 @@ class Display(object): #what does passing object mean?
         #need to update page if we change pages
     
     def highlight_measure(self, measure):
+        import traceback
+        traceback.print_stack()
+        print '--> Going to measure %d.' % measure
         next_image = self.image_dir[self.cur_page_index].copy()
         im_width, im_height = next_image.size
         x_start = int(self.measure_percents[measure][0]*im_width)
@@ -350,29 +369,10 @@ class Display(object): #what does passing object mean?
         self.changing_page = False
         self.cur_measure = measure
     
-    
     def highlight_next_measure(self):
-        next_image = self.image_dir[self.cur_page_index].copy()
-        im_width, im_height = next_image.size
-        self.cur_measure += 1
-        x_start = int(self.measure_percents[self.cur_measure][0]*im_width)
-        x_end = int(x_start + self.measure_percents[self.cur_measure][2]*im_width)
-        y_end = int((self.measure_percents[self.cur_measure][1]+self.staff_height)*im_height)
-        y_start = int(self.measure_percents[self.cur_measure][1]*im_height)
-        self.transparent = self.transparent.resize((x_end-x_start, y_end-y_start))
-        next_image.paste("Red", (x_start, y_start, x_end, y_end), self.transparent)
-        #next_image.paste(self.transparent, (0,0,10,10), self.transparent)
-        #so you have to save the image displayed somewhere permenent, otherwise
-        #it goes bye bye.
-        self.cur_tkimage = ImageTk.PhotoImage(next_image)
-        self.changing_page = True
-        self.cur_image.destroy()
-        self.cur_image = Label(self.parent, image = self.cur_tkimage)
-        self.cur_image.grid()
-        self.cur_image.update()
-        self.changing_page = False
-        
-        
+        self.highlight_measure(self.cur_measure + 1)
+    
+
 class OptionsPane(object):
     def __init__(self, parent, display):
         self.parent = parent

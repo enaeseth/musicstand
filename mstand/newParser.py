@@ -25,14 +25,14 @@ class Note(object):
         self.accidental = None
         self.octave = 0
 
-        def pitch_to_note(self,pitch):
-            pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'],
-                          7:['G',None],8:['G','sharp'],-3:['A',None],-2:['B','flat'],-1:['B',None]}
-            self.octave = ((pitch+3)/12)-1
-            norm_pitch = pitch-(12*(self.octave+1))
-            new_pitch = pitch_dict[norm_pitch]
-            self.pitch = new_pitch[0]
-            self.accidental = new_pitch[1]
+    def pitch_to_note(self,pitch):
+        pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'],
+                      7:['G',None],8:['G','sharp'],-3:['A',None],-2:['B','flat'],-1:['B',None]}
+        self.octave = ((pitch+3)/12)-1
+        norm_pitch = pitch-(12*(self.octave+1))
+        new_pitch = pitch_dict[norm_pitch]
+        self.pitch = new_pitch[0]
+        self.accidental = new_pitch[1]
 
     def note_to_dict(self, notes_by_start_time, start_time):
         notes_by_start_time[start_time] = [self.measure, self.beat_number, self.duration, [(self.octave, self.pitch, self.accidental)]]
@@ -45,8 +45,15 @@ def add_multiple(pitch):
     return (octave, new_pitch, new_acc)
 
 def parse_file(filename):
-    os.system("./mf2t "+filename + ".midi > "+filename+".txt")
-    filename = filename+".txt"
+    mf2t = os.path.join(os.path.dirname(__file__), 'mf2t')
+    
+    base, ext = os.path.splitext(filename)
+    if ext != '.midi':
+        filename = base + '.midi'
+    
+    os.system('"%s" "%s" > "%s.txt"' % (mf2t, filename, filename))
+    
+    filename = '%s.txt' % filename
     notes = []
     ppq = 0
     time_sig = 0
@@ -83,12 +90,8 @@ def parse_file(filename):
     list_of_keys = notes_by_start_time.keys()
     list_of_keys.sort()
     for i in list_of_keys:
-        big_note_array.append(notes_by_start_time[i])
+        big_note_array.append(tuple(notes_by_start_time[i]))
     return big_note_array
-
-def masterMethod(filename):
-        os.system("./mf2t "+filename + ".midi > "+filename+".txt")
-        return parse_file(filename+".txt")
 
 if __name__ == '__main__':
     filename = sys.argv[1]

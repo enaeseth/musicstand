@@ -39,7 +39,7 @@ PyMODINIT_FUNC initaudio(void) {
         return;
     if (PyType_Ready(&CoalesceFilterType) < 0)
         return;
-    if (PyType_Ready(&DecibelFilterType) < 0)
+    if (PyType_Ready(&NegativeFilterType) < 0)
         return;
     
     PaError err = Pa_Initialize();
@@ -83,7 +83,7 @@ PyMODINIT_FUNC initaudio(void) {
     PyModule_AddObject(module, "CoalesceFilter",
         (PyObject*) &CoalesceFilterType);
     
-    Py_INCREF(&DecibelFilterType);
-    PyModule_AddObject(module, "DecibelFilter",
-        (PyObject*) &DecibelFilterType);
+    Py_INCREF(&NegativeFilterType);
+    PyModule_AddObject(module, "NegativeFilter",
+        (PyObject*) &NegativeFilterType);
 }
