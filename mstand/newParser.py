@@ -5,6 +5,7 @@ Make sure any .ly file you test with this looks vaguely like this:
   \score {
     \relative { \time 6/8 c4 e g8 a8 b4 < a b c> c1 }
     \midi { }
+    \layout { }
   }
 It can have other crap in it too, but the important part is the \midi { } line.
 Eventually I'll probably write something that adds that line if the file doesn't have it,
@@ -45,7 +46,7 @@ def add_multiple(pitch):
     return (octave, new_pitch, new_acc)
 
 def parse_file(filename):
-    mf2t = os.path.join(os.path.dirname(__file__), 'mf2t')
+    mf2t = os.path.join(os.path.dirname(__file__), './mf2t')
     
     base, ext = os.path.splitext(filename)
     if ext != '.midi':
@@ -83,7 +84,7 @@ def parse_file(filename):
                     note = notes_by_start_time.get(start_time)
                     note[3].append(add_multiple(pitch))
             else:
-                new_note = Note(((start_time/ppq)/time_sig[0])+1, (float(end_time-start_time)/ppq), ((float(start_time)/ppq))%time_sig[1]+1)
+                new_note = Note(((start_time/ppq)/time_sig[0])+1, (float(end_time-start_time)/ppq)/time_sig[1], ((float(start_time)/ppq))%time_sig[1])
                 new_note.pitch_to_note(pitch)
                 new_note.note_to_dict(notes_by_start_time, start_time)
                     
@@ -94,7 +95,7 @@ def parse_file(filename):
     return big_note_array
 
 if __name__ == '__main__':
-    filename = sys.argv[1]
-    notes = parse_file(filename)
-    for item in notes:
-        print item
+	filename = sys.argv[1]
+	notes = parse_file(filename)
+	for item in notes:
+		print item
