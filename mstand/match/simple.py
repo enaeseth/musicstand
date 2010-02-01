@@ -6,7 +6,7 @@ Provides a simple matching algorithm.
 
 from mstand.notes import freq_to_note, note_to_freq, unparse_note
 from mstand.match.algorithm import Algorithm, UnknownPositionError
-from dtw import where_are_we
+# from dtw import where_are_we
 
 class SimpleAlgorithm(Algorithm):
     """

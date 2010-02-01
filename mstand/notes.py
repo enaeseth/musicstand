@@ -105,9 +105,12 @@ def unparse_note(octave, note, accidental, approx_symbols=True):
 if __name__ == '__main__':
     import sys
     
-    semitone, error = freq_to_semitone(float(sys.argv[1]))
-    print "%s (error: %.03f)" % (unparse_note(*semitone_to_note(semitone)),
-        error)
+    try:
+        semitone, error = freq_to_semitone(float(sys.argv[1]))
+        print "%s (error: %.03f)" % (unparse_note(*semitone_to_note(semitone)),
+            error)
+    except ValueError:
+        print "%.03f" % (note_to_freq(*parse_note(sys.argv[1])))
     
     # if len(sys.argv) < 2:
     #     print >>sys.stderr, "usage: python %s {note}[accidental]{octave}" % \

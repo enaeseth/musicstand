@@ -9,9 +9,11 @@ import os, sys
 import re
 import Image, ImageTk
 import psprocess
+from Queue import Queue, Empty as QueueEmpty
+from mstand.utils import create_lilypond_files
 
 class Display(object): #what does passing object mean?
-    def __init__(self, parent, directory, ps_filename, DEBUG=False):
+    def __init__(self, parent, song_loaded, DEBUG=False):
         self.parent = parent
         self.parent.title("Digital Music Stand")
         self.parent.geometry('+50+25')
@@ -22,11 +24,10 @@ class Display(object): #what does passing object mean?
         self.cur_image = None
         self.cur_tkimage = None
         self.options_window = None
-        self.lilypond_file = None
+        self.lilypond_file = 'march.ly'
         self.image_dir_zoom = None
-        self.measure_percents, self.ps_info = psprocess.parse_postscript(ps_filename)
-        self.staff_height = self.ps_info[0]
-        self.line_percents = self.ps_info[2]
+        self.measure_percents = None 
+        self.ps_info = None
         self.zoom_measures = []
         self.lines_per_page = 2
         self.playing = False
@@ -37,6 +38,8 @@ class Display(object): #what does passing object mean?
         self.debug = DEBUG
         self.transparent = None
         
+        self.updates = Queue(0)
+        self.song_loaded = song_loaded
         
         menubar = Menu(self.parent)
         menubar.add_command(label="YEEEEAAAAHHHH", \
@@ -44,7 +47,23 @@ class Display(object): #what does passing object mean?
         self.parent.config(menu=menubar)
         
         self.welcome_frame = self.init_welcome(self.parent)
-
+        self.parent.after(50, self.check_for_updates)
+    
+    def update_position(self, matcher):
+        present_measure = matcher.current_interval.measure
+        
+        if self.cur_measure != present_measure:
+            self.updates.put(present_measure)
+    
+    def check_for_updates(self):
+        try:
+            while True:
+                measure = self.updates.get_nowait()
+                self.highlight_measure(measure)
+        except QueueEmpty:
+            pass
+        
+        self.parent.after(50, self.check_for_updates)
     
     def init_welcome(self, parent):
         container = Frame(parent, width = 500, height = 500)
@@ -52,7 +71,7 @@ class Display(object): #what does passing object mean?
         welcome = Label(container, text = "Welcome to \n Digital Music Stand!", \
             font = ("Trebuchet MS", 24))
         
-        file = open("config.txt")
+        file = open(os.path.join(os.path.dirname(__file__), "config.txt"))
         music = []
         for line in file:
             music.append(line.strip())
@@ -84,7 +103,12 @@ class Display(object): #what does passing object mean?
             folder_name = ''
             for word in song_name.split():
                 folder_name += word
-            print lilypond_file, folder_name
+            create_lilypond_files(lilypond_file, folder_name)
+            
+            self.folder_name = folder_name
+            self.song_folder = os.path.join('songs', folder_name)
+            self.lilypond_file = os.path.join(self.song_folder,
+                os.path.basename(lilypond_file))
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
@@ -106,7 +130,11 @@ class Display(object): #what does passing object mean?
         folder = ''
         for word in title.split():
             folder += word
-        path = './songs/'+folder
+        path = os.path.join(os.path.dirname(__file__), 'songs', folder)
+        ps_file = os.path.splitext(self.lilypond_file)[0] + '.ps'
+        self.measure_percents, self.ps_info = psprocess.parse_postscript(ps_file)
+        self.staff_height = self.ps_info[0]
+        self.line_percents = self.ps_info[2]
         self.image_dir = self.load_images(path)
         #self.image_dir = self.resize_images(self.image_dir)
         # self.tkimage_dir = [ImageTk.PhotoImage(image) for image in \
@@ -120,7 +148,8 @@ class Display(object): #what does passing object mean?
             self.cur_image = Label(self.parent, image = self.cur_tkimage)
         self.cur_image.grid()
         self.options_window = OptionsPane(self.parent, self)
-        
+        self.song_loaded(self)
+    
     def load_images(self, path):
         dir_list = None
         try:
@@ -128,11 +157,13 @@ class Display(object): #what does passing object mean?
         except:
             print 'Song not loaded into program currently.'
             return None
-        re_image_types = '.*.gif$|.*.jpg$|.*.png$|.*.jpeg$'
+        re_image_types = r'.*\.(gif|jpe?g|png)$'
         pattern = re.compile(re_image_types, re.IGNORECASE)
         dir_list = filter(pattern.search, dir_list)
+        dir_list = [os.path.join(path, filename) for filename in dir_list]
         image_list = [Image.open(image) for image in dir_list]
-        self.transparent = Image.open("transparent.png")
+        self.transparent = Image.open(os.path.join(os.path.dirname(__file__),
+            "transparent.png"))
         if self.zoomed:
             self.create_zoom_images(image_list, self.lines_per_page)
         image_list = self.resize_images(image_list)
@@ -302,13 +333,27 @@ class Display(object): #what does passing object mean?
         #need to update page if we change pages
     
     def highlight_measure(self, measure):
-        pass
+        next_image = self.image_dir[self.cur_page_index].copy()
+        im_width, im_height = next_image.size
+        x_start = int(self.measure_percents[measure][0]*im_width)
+        x_end = int(x_start + self.measure_percents[measure][2]*im_width)
+        y_start = int(self.measure_percents[measure][1]*im_height)
+        y_end = int((self.measure_percents[measure][1]+self.staff_height)*im_height)
+        self.transparent = self.transparent.resize((x_end-x_start, y_end-y_start))
+        next_image.paste("Red", (x_start, y_start, x_end, y_end), self.transparent)
+        self.cur_tkimage = ImageTk.PhotoImage(next_image)
+        self.changing_page = True
+        self.cur_image.destroy()
+        self.cur_image = Label(self.parent, image = self.cur_tkimage)
+        self.cur_image.grid()
+        self.cur_image.update()
+        self.changing_page = False
+        self.cur_measure = measure
     
     
     def highlight_next_measure(self):
         next_image = self.image_dir[self.cur_page_index].copy()
-        im_width = next_image.size[0]
-        im_height = next_image.size[1]
+        im_width, im_height = next_image.size
         self.cur_measure += 1
         x_start = int(self.measure_percents[self.cur_measure][0]*im_width)
         x_end = int(x_start + self.measure_percents[self.cur_measure][2]*im_width)
@@ -371,6 +416,17 @@ class OptionsPane(object):
         menu.add_command(label="Look")
         self.menubutton.config(menu=menu)
         self.menubutton.grid()
+
+def dln_the_white():
+    magic()
+    
+def magic():
+    pass
+
+def create_display(*args, **kwargs):
+    root = Tk()
+    display = Display(root, *args, **kwargs)
+    root.mainloop()
 
 def main():
     root = Tk()

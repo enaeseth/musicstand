@@ -60,6 +60,8 @@ class Matcher(object):
     @property
     def current_interval(self):
         """The interval that was most recently matched"""
+        print "WHERE AM I? HERE: %r" % self.current_location
+        print self.intervals
         return (self.intervals[self.current_location]
             if self.current_location is not None else None)
     

@@ -94,8 +94,12 @@ int FilterChain_Execute(FilterChain* chain, size_t* length, bucket_t* entries)
             }
             
             result = Filter_Execute(chain->filters[i], length, entries);
-            if (result != 0)
+            if (result != 0) {
+                fprintf(stderr, "error: filter %s returned %d\n",
+                    chain->filters[i]->ob_type->tp_name, result);
+                PyErr_Print();
                 break;
+            }
         }
                 
         if (lock_held) {

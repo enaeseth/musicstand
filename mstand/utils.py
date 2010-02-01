@@ -7,12 +7,12 @@ def create_lilypond_files(file_path, song_name):
 	a directory for that song in our Songs folder, copies the lilypond file to
 	it, and runs the lilypond script to create .ps, .pdf, and .midi files.'''
 	
-	cache_dir = "Songs/%s/" % song_name
+	cache_dir = "songs/%s/" % song_name
 	file_name = re.split("/",file_path)[-1]
 
 	# Make sure the "Songs" directory exists
-	if not os.path.exists("Songs"):
-		os.mkdir("Songs")
+	if not os.path.exists("songs"):
+		os.makedirs("songs")
 	
 	if os.path.exists(cache_dir):
 		# Song has already been previously added
@@ -32,7 +32,7 @@ def create_lilypond_files(file_path, song_name):
 	# AND OVERWRITE THE FILE
 	
 	# Run lilypond script
-	os.system('"%s" "%s"' % (lilypond_path,new_path))
+	os.system('"%s" "%s"' % (lilypond_path, new_path))
 	
 	# Convert pdf to pictures
 	file_base = re.split("\.",file_name)[0]

@@ -4,58 +4,108 @@
 """
 An intelligent music stand.
 
-(Oh, how I wish that were really true.)
+(This statement is now much more true than it once was.)
 """
 
 from __future__ import with_statement
 
-from mstand.monitor import Monitor
-from mstand.analyzer import Analyzer
 from mstand.lilypondParser import parse_file as parse_lilypond_file
 from mstand import notes
-from mstand.pages import open_page
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
+from mstand.newParser import parse_file
 
 import re
 import os
 import sys
+import audio
+import operator
+from Tkinter import Tk
+from display import Display
+from threading import Thread
 from time import sleep
 
-def main(filename, algorithm, window_size, interval, debug=False):
-    notes, cache_dir = parse_lilypond_file(filename)
+class MinimumIntensityFilter(object):
+    def __init__(self, threshold):
+        self.threshold = threshold
+    
+    def __call__(self, samples):
+        return [(f, i) for (f, i) in samples if i >= self.threshold]
+
+class SmoothFilter(object):
+    def __init__(self, memory):
+        self.memory = memory
+        self._history = []
+    
+    def __call__(self, buckets):
+        self._history.append(set(f for f, i in buckets))
+        
+        if len(self._history) < self.memory:
+            return []
+        
+        self._history.pop(0)
+        
+        common_freqs = reduce(operator.and_, self._history)
+        return [(f, i) for (f, i) in buckets if f in common_freqs]
+
+def run(algorithm, listener, debug=False):
+    running = [True]
+    display = None
+    queue = None
+    matcher = [None]
     
     def position_changed(matcher):
-        current_measure = matcher.current_interval.measure
-        measure_changed = (matcher.previous_interval is None or
-            matcher.previous_interval.measure != current_measure)
-        
-        # if measure_changed:
-            # open_page(filename, current_measure, cache_dir)
+        display.update_position(matcher)
+
         if matcher.current_location >= (len(matcher.intervals) - 1):
             print 'Done with the piece!'
             matcher.shutdown()
+            running[0] = False
     
-    print "Starting audio analysis (dun dun dun...)"
-    matcher = Matcher(notes, algorithm, position_changed, debug)
-    monitor = Monitor(min(window_size, 1024))
-    analyzer = Analyzer(matcher.add, window_size, interval, 40000000,
-        monitor.sample_rate)
-    analyzer.start(monitor)
+    def get_from_listener():
+        while running[0]:
+            try:
+                offset, buckets, data = queue.pop()
+                print len(buckets)
+            except KeyboardInterrupt:
+                break
+            # XXX: this is dumb
+            frequencies = [p[0] for p in sorted(buckets, key=lambda b: b[1])]
+            
+            if matcher[0]:
+                matcher[0].add(frequencies)
     
-    matcher.start()
+    queue = listener.start()
+    Thread(target=get_from_listener, name='Listenerer').start()
     
-    while matcher.running:
-        try:
-            sleep(1)
-        except KeyboardInterrupt:
-            print "got interrupt"
-            break
+    def song_loaded(display):
+        print "Song loaded: %s" % display.lilypond_file
+        notes = parse_file(display.lilypond_file)
+        print notes
+        matcher[0] = Matcher(notes, algorithm,
+            position_changed, debug)
+        matcher[0].start()
+        print "Started matcher."
     
-    matcher.shutdown()
-    analyzer.stop()
-    print '\nYEEEEEEEEEEAAAAAAAAAAAAHHHHHHHHHHHH!'
-    os.system('killall Preview')
+    try:
+        root = Tk()
+        display = Display(root, song_loaded, DEBUG=debug)
+        root.mainloop()
+    except KeyboardInterrupt:
+        running[0] = False
+
+def main(algorithm, window_size, interval, debug=False):
+    filters = [
+        audio.CutoffFilter(4200.0),
+        audio.CoalesceFilter(),
+        MinimumIntensityFilter(10.0),
+        SmoothFilter(4)
+    ]
+    
+    listener = audio.Listener(window_size=window_size, interval=interval,
+        filters=filters)
+    
+    run(algorithm, listener, debug)
 
 def get_algorithm(name):
     full_name = 'mstand.match.%s' % name
@@ -125,10 +175,6 @@ if __name__ == '__main__':
         window_size=4096)
     
     options, args = parser.parse_args()
-    if len(args) < 1:
-        parser.error('which LilyPond file should I open?')
-    elif not os.path.exists(args[0]):
-        parser.error('file %r does not exist' % args[0])
     
     # Load the matching algorithm implementation
     try:
@@ -144,5 +190,5 @@ if __name__ == '__main__':
     if not is_power_of_two(options.window_size):
         print >>sys.stderr, 'warning: FFT window size should be a power of two'
     
-    main(args[0], algorithm, options.window_size, options.interval,
+    main(algorithm, options.window_size, options.interval,
         options.debug)
