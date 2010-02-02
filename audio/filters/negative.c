@@ -17,7 +17,8 @@ static int NegativeFilter_Execute(NegativeFilterObject* self, size_t* length,
     
     for (i = 0, bucket = buckets; i < orig_len; i++, bucket++) {
         if (bucket->intensity < 0.0) {
-            bucket->intensity = 0.0;
+            // bucket->intensity = 0.0;
+            bucket->intensity = fabs(bucket->intensity);
         }
     }
     
