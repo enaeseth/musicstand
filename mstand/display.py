@@ -52,12 +52,13 @@ class Display(object):
         self.parent.after(50, self.check_for_updates)
     
     def update_position(self, matcher):
-        present_measure = matcher.current_interval.measure
+        interval = matcher.current_interval
+        present_measure = interval.measure if interval is not None else 0
         
         if self.cur_measure != present_measure:
-            import traceback
-            traceback.print_stack()
-            print '--> Looks like the new measure in town is %d.' % present_measure
+            # import traceback
+            # traceback.print_stack()
+            # print '--> Looks like the new measure in town is %d.' % present_measure
             self.updates.put(present_measure)
     
     def check_for_updates(self):
@@ -349,8 +350,8 @@ class Display(object):
         #need to update page if we change pages
     
     def highlight_measure(self, measure):
-        import traceback
-        traceback.print_stack()
+        # import traceback
+        # traceback.print_stack()
         print '--> Going to measure %d.' % measure
         next_image = self.image_dir[self.cur_page_index].copy()
         im_width, im_height = next_image.size

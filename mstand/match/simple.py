@@ -22,7 +22,7 @@ class SimpleAlgorithm(Algorithm):
         for interval in self.intervals:
             interval.notes = [freq_to_note(note_to_freq(*note)) for note in interval.notes]
         self.miss_count = 0
-        self.current_location = 0
+        self.current_location = -1
         self.last_notes = None
     
     def filter_frequencies(self, frequencies):
@@ -55,6 +55,9 @@ class SimpleAlgorithm(Algorithm):
         
         was_subset = False
         def matches(position):
+            if position < 0:
+                return False
+            
             if not new_notes:
                 if position == 0:
                     was_subset = True
@@ -63,6 +66,8 @@ class SimpleAlgorithm(Algorithm):
             heard_letters = set(note[1] for note in new_notes)
             expected_notes = self.intervals[position].notes
             expected_letters = set(note[1] for note in expected_notes)
+            
+            print 'heard: %s; expected: %s' % (''.join(heard_letters), ''.join(expected_letters))
             
             if position == 0:
                 was_subset = heard_letters.issubset(expected_letters)
@@ -82,6 +87,6 @@ class SimpleAlgorithm(Algorithm):
             if new_notes != self.last_notes and not was_subset:
                 self.miss_count += 1
         
-        self.debug('miss count is now %d' % self.miss_count)
+        # self.debug('miss count is now %d' % self.miss_count)
         self.last_notes = new_notes
         return self.current_location

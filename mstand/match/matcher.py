@@ -12,6 +12,7 @@ import re
 from Queue import Queue, Empty
 from threading import Thread, Event
 from collections import deque
+from mstand import notes
 
 class Interval(object):
     """
@@ -52,6 +53,7 @@ class Matcher(object):
         self.algorithm = algorithm
         self.incoming_notes = None # this gets created in .run()
         self.intervals = self.create_intervals(notes)
+        print self.intervals
         self.insert_rests_between_identical_intervals(self.intervals)
         self.change_listener = change_listener
         
@@ -60,10 +62,10 @@ class Matcher(object):
     @property
     def current_interval(self):
         """The interval that was most recently matched"""
-        print "WHERE AM I? HERE: %r" % self.current_location
-        print self.intervals
-        return (self.intervals[self.current_location]
-            if self.current_location is not None else None)
+        if self.current_location is not None and self.current_location >= 0:
+            return self.intervals[self.current_location]
+        else:
+            return None
     
     @property
     def previous_interval(self):
@@ -112,7 +114,7 @@ class Matcher(object):
         
         self.running = True
         self.incoming_notes = Queue(0)
-        self.current_location = 0
+        self.current_location = -1
         self.change_listener(self)
         previous_notes = None
         
@@ -135,7 +137,18 @@ class Matcher(object):
                 self.previous_location = self.current_location
                 self.current_location = location
                 
+                if self.current_location >= 0:
+                    interval = self.intervals[self.current_location]
+                    print 'MOVING to %.3f (%s)' % (interval.start,
+                        ', '.join(notes.unparse_note(*n) for n in interval.notes))
+                else:
+                    print 'Just started.'
+                
                 self.change_listener(self)
+            elif self.current_location >= 0:
+                interval = self.intervals[self.current_location]
+                print 'Staying at %.3f (%s)' % (interval.start,
+                    ', '.join(notes.unparse_note(*n) for n in interval.notes))
     
     def shutdown(self):
         """
@@ -155,8 +168,9 @@ class Matcher(object):
             if note[1] >= 1.0:
                 raise ValueError('interval %r starts %.0f%% of the way '
                     'through measure %d' % (note, note[1] * 100, note[0]))
-            start_time = note[0] + note[1]
+            start_time = (note[0] - 1) + note[1]
             end_time = start_time + note[2]
+            print note, start_time, end_time
             times.add(start_time)
             times.add(end_time)
         
@@ -173,7 +187,7 @@ class Matcher(object):
         
         # warning: shit be O(n*k), yo. fix up when we care.
         for note in notes:
-            start_time = note[0] + note[1]
+            start_time = (note[0] - 1) + note[1]
             end_time = start_time + note[2]
             
             for interval in intervals:
@@ -183,6 +197,8 @@ class Matcher(object):
         return intervals
     
     def insert_rests_between_identical_intervals(self, intervals):
+        # return intervals
+        
         i = 0
         
         while i < len(intervals):
