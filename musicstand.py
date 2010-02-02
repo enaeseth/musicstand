@@ -79,7 +79,7 @@ def run(algorithm, listener, debug=False):
     def song_loaded(display):
         print "Song loaded: %s" % display.lilypond_file
         notes = parse_file(display.lilypond_file)
-        print notes
+        # print notes
         matcher[0] = Matcher(notes, algorithm,
             position_changed, debug)
         matcher[0].start()
@@ -95,8 +95,9 @@ def run(algorithm, listener, debug=False):
 def main(algorithm, window_size, interval, debug=False):
     filters = [
         audio.CutoffFilter(4200.0),
+        audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(10.0),
+        MinimumIntensityFilter(50.0),
         SmoothFilter(4)
     ]
     
@@ -170,7 +171,7 @@ if __name__ == '__main__':
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
     parser.set_defaults(algorithm='simple', debug=False, interval=1024,
-        window_size=4096)
+        window_size=4096*4)
     
     options, args = parser.parse_args()
     
