@@ -23,7 +23,7 @@ class Interpreter():
 					chord = False
 				else:
 					cur_over = cur_over + note
-		if chord = False:
+		if not chord:
 			return freq_to_note(heard[0])
 		else:
 			return True
