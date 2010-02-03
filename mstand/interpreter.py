@@ -1,6 +1,10 @@
 ''' interpreter.py
 	Takes a list of heard frequencies from the FFT machine, and checks if any 
 	overtones from the matcher's current note are in that list.
+	
+	THINGS TO DO:
+		If False-
+			Find all the shit that it could be, by looking at the overtones and shit. Return that shit. Be like, "HEY! THIS THING HAS SEVERAL HARMONICS!"
 '''
 
 from notes import note_to_freq
@@ -11,14 +15,18 @@ class Interpreter():
 
 	def overtones(self, cur_freq):
 		'''This actually checks for the notes in the list of heard frequencies.'''
+		chord = True
 		for note in cur_freq:
 			cur_over = note
 			while cur_over <= note*6:
 				if cur_over not in heard:
-					return False
+					chord = False
 				else:
 					cur_over = cur_over + note
-		return True
+		if chord = False:
+			return freq_to_note(heard[0])
+		else:
+			return True
 		
 	def heard(self, heard_frequencies):
 		'''The FFT thing should call this.'''
