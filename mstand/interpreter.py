@@ -15,7 +15,7 @@ class Interpreter(object):
         # we store notes instead of frequencies to work around floating-point
         # issues
         self.heard_notes = set()
-
+    
     def overtones(self, frequencies):
         """
         For all the given frequencies, check if either that frequency or one
@@ -34,12 +34,12 @@ class Interpreter(object):
         
         # check that has_overtone returns true for all the frequencies
         return all(has_overtone(freq) for freq in frequencies)
-        
+    
     def heard(self, heard_frequencies):
         '''The FFT thing should call this.'''
         self.heard_notes = set(freq_to_note(freq)
             for freq, intensity in heard_frequencies)
-        
+    
     def looks_like(self, current_notes):
         '''The matcher should call this. It will return True to the matcher
         if any harmonic of the note has been heard, and False otherwise.
