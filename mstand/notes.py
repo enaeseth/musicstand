@@ -78,12 +78,24 @@ def parse_note(note_description):
     Parse a description of a note written in scientific pitch notation.
     """
     
+    symbols = {
+        'b': 'flat',
+        '♭': 'flat',
+        'flat': 'flat',
+        '#': 'sharp',
+        '♯': 'sharp',
+        'sharp': 'sharp',
+        '-': None,
+        '♮': None,
+        None: None
+    }
+    
     match = _note_pattern.match(note_description)
     if not match:
         raise ValueError('unable to interpret "%s" as a musical note' %
             note_description)
     
-    return (int(match.group(3)), match.group(1), match.group(2) or None)
+    return (int(match.group(3)), match.group(1), symbols[match.group(2)])
 
 def unparse_note(octave, note, accidental, approx_symbols=True):
     symbols = {
