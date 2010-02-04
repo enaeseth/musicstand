@@ -159,6 +159,7 @@ class ProfileTool(object):
                 if len(profile) > 0 and profile not in profiles:
                     profiles.append(profile)
             
+            note = get_note(note)
             try:
                 self.profile.forget(note)
             except KeyError:
@@ -168,7 +169,40 @@ class ProfileTool(object):
                 notes = sorted(profile, key=lambda n: note_to_semitone(*n))
                 print '  - %s' % (', '.join(unparse_note(*n) for n in notes))
                 
-                self.profile.add(get_note(note), profile)
+                self.profile.add(note, profile)
+    
+    def interpret(self, verbose=None):
+        print 'Play a note.'
+        
+        verbose = verbose in ('-v', 'verbose')
+        
+        def do_interpretation():
+            last_note = None
+            
+            while True:
+                buckets = yield
+                
+                notes = set(freq_to_note(freq) for freq, intensity in buckets)
+                if verbose and len(notes) > 0:
+                    print color('black!', ' '.join('%3s' % unparse_note(*note)
+                        for note in
+                        sorted(notes, key=lambda n: note_to_semitone(*n))))
+                new_note = self.profile.match(notes)
+                
+                if last_note is not new_note:
+                    if new_note is None:
+                        print color('yellow!', '-silence-')
+                    else:
+                        print color('green!', unparse_note(*new_note))
+                    last_note = new_note
+        
+        try:
+            self.capturer.forward(do_interpretation)
+        except KeyboardInterrupt:
+            self.capturer.stop()
+            print
+            print 'Aborted.'
+            return
     
 def get_semitone(note):
     try:

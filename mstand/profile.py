@@ -19,6 +19,7 @@ class Capturer(object):
         self._listener = listener
         self._running = False
         self._capturing = False
+        self._forward_target = None
         self._sync = Condition()
         self._thread = None
         self._queue = None
@@ -75,6 +76,18 @@ class Capturer(object):
         
         return self._captured
     
+    def forward(self, target):
+        generator = target()
+        generator.next()
+        
+        with self._sync:
+            if self._capturing:
+                raise RuntimeError('no simultaneous capture supported')
+            
+            self._silence_count = None
+            self._forward_target = generator
+            self._sync.wait()
+    
     def _run(self):
         with self._sync:
             # signal to the main thread that this thread has started
@@ -88,6 +101,20 @@ class Capturer(object):
                 offset, buckets, data = self._queue.pop()
             except KeyboardInterrupt:
                 break
+            
+            if self._forward_target is not None:
+                if buckets and self._silence_count is None:
+                    self._silence_count = 0
+                elif not buckets and self._silence_count is not None:
+                    self._silence_count += 1
+                    if self._silence_count >= 30:
+                        self._forward_target = None
+                        with self._sync:
+                            self._sync.notify()
+                else:
+                    self._forward_target.send(buckets)
+                
+                continue
             
             if not self._capturing:
                 continue
@@ -119,8 +146,31 @@ class Profile(object):
         self.name = name
         self._mapping = mapping or {}
     
-    def match(self, heard_frequencies):
-        pass
+    def match(self, heard_notes):
+        if len(heard_notes) == 0:
+            return None
+        if not isinstance(heard_notes, set):
+            heard_notes = set(heard_notes)
+        
+        # print ' '.join(unparse_note(*n) for n in sorted(heard_notes,
+        #     key=lambda n: note_to_semitone(*n)))
+        
+        winner = None
+        best_overlap = 0.0
+        for note in self.notes():
+            # print '  ' + unparse_note(*note),
+            for i, pattern in enumerate(self[note]):
+                intersection = pattern & heard_notes
+                overlap = float(len(intersection)) / len(pattern)
+                # print '%d: %s (%.0f%%)' % (i + 1,
+                #     ' '.join(unparse_note(*n) for n in sorted(intersection,
+                #         key=lambda n: note_to_semitone(*n))), 100.0 * overlap),
+                if overlap > best_overlap:
+                    best_overlap = overlap
+                    winner = note
+            # print
+        
+        return winner
     
     def clear(self):
         self._mapping = {}
