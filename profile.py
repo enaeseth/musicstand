@@ -5,8 +5,8 @@ Profile musical instruments so that we know WTF is going on because daaaaaaamn.
 """
 
 from __future__ import with_statement
-from mstand.monitor import Monitor
-from mstand.analyzer import Analyzer
+from mstand import audio
+from mstand.filters import *
 from mstand.notes import *
 from mstand.profile import *
 from time import sleep
@@ -14,66 +14,12 @@ from threading import Condition
 import sys
 import os
 
-class Capturer(object):
-    def __init__(self):
-        self._capturing = False
-        self._waiter = Condition()
-        self._target = None
-        self._heard_something = False
-        self._freqs = self._last_heard = self._silence_count = None
-    
-    def add(self, freqs):
-        if self._capturing:
-            if len(freqs) == 0:
-                self._silence_count += 1
-                if self._silence_count >= 5 and self._heard_something:
-                    self._done()
-                    return
-            else:
-                self._heard_something = True
-            
-            if freqs != self._last_heard:
-                self._last_heard = freqs
-                self._freqs.append(freqs)
-    
-    def capture(self, target):
-        assert not self._capturing
-        
-        self._target = target
-        
-        self._freqs = []
-        self._last_matched = None
-        self._silence_count = 0
-        self._heard_something = False
-        
-        self._capturing = True
-        
-        with self._waiter:
-            self._waiter.wait()
-            self._capturing = False
-        
-        # strip off leading silence
-        while len(self._freqs[0]) == 0:
-            self._freqs.pop(0)
-        
-        # strip off ending silence
-        while len(self._freqs[len(self._freqs) - 1]) == 0:
-            self._freqs.pop()
-        
-        return self._freqs
-    
-    def _done(self):
-        self._capturing = False
-        with self._waiter:
-            self._waiter.notifyAll()
-
 class ProfileTool(object):
-    def __init__(self, window_size, interval):
-        self.capturer = Capturer()
-        self.monitor = Monitor(min(window_size, 1024))
-        self.analyzer = Analyzer(self.capturer.add, window_size, interval,
-            2000000, self.monitor.sample_rate)
-        self.analyzer.start(self.monitor)
+    CUTOFFS = (0.6, 0.25)
+    
+    def __init__(self, listener):
+        self.capturer = Capturer(listener)
+        self.capturer.start()
         
         self.filename = None
         self.profile = None
@@ -139,26 +85,35 @@ class ProfileTool(object):
             print >>sys.stderr, 'error: no profile is loaded'
             return
         
-        def show_freqs(semitone, frequencies, prefix=''):
-            print '%s%d (%s):\t%s' % (prefix, semitone,
-                unparse_note(*semitone_to_note(semitone)),
-                ', '.join('%.01f' % freq for freq in frequencies))
+        def show_patterns(note, patterns, prefix=''):
+            for i, pattern in enumerate(patterns):
+                if i == 0:
+                    print '%s%-3s  -' % (prefix, unparse_note(*note)),
+                else:
+                    print '%s     -' % prefix,
+                
+                print ', '.join(unparse_note(*note) for note in
+                    sorted(pattern, key=lambda n: note_to_semitone(*n)))
         
         if note is not None:
-            semitone = self._get_semitone(note)
+            try:
+                semitone = int(note)
+            except (TypeError, ValueError):
+                note = parse_note(note)
+            else:
+                note = semitone_to_note(semitone)[0]
             
             try:
-                frequencies = self.profile[semitone]
+                patterns = self.profile[note]
             except KeyError:
                 print >>sys.stderr, 'error: profile %r has no frequencies ' \
                     'recorded at semitone %d' % semitone
             
-            show_freqs(semitone, frequencies)
+            show_patterns(note, patterns)
         else:
-            print 'profile %s:' % self.profile.name
-            for semitone in sorted(self.profile):
-                frequencies = self.profile[semitone]
-                show_freqs(semitone, frequencies, '  ')
+            print '%s:' % self.profile.name
+            for note in self.profile.notes():
+                show_patterns(note, self.profile[note], '  ')
     
     def learn(self, *notes):
         if self.profile is None:
@@ -177,23 +132,44 @@ class ProfileTool(object):
         
         for note in notes:
             semitone = self._get_semitone(note)
-            print 'Play %s.' % (unparse_note(*semitone_to_note(semitone)))
+            readable_note = unparse_note(*semitone_to_note(semitone))
+            print 'Play %s.' % readable_note
             
             try:
-                captured = self.capturer.capture(semitone)
+                captured = self.capturer.capture()
             except KeyboardInterrupt:
-                self.capturer._done()
+                self.capturer.stop()
                 print
                 print 'Aborted.'
                 break
             
             print 'Captured:'
-            for freq in captured[0]:
-                print '  - %s (%.02fHz)' % (unparse_note(*freq_to_note(freq)),
-                    freq)
+            notes = list(sorted(captured.keys(),
+                key=lambda n: note_to_semitone(*n)))
             
-            self.profile[semitone] = captured[0]
-
+            print '  ' + ', '.join('%s: %d' % (unparse_note(*n), captured[n])
+                for n in notes)
+                
+            print 'Profiling %s as:' % readable_note
+            max_samples = float(max(captured.values()))
+            profiles = []
+            for cutoff in self.CUTOFFS:
+                profile = set(n for n, samples in captured.iteritems()
+                    if samples >= (max_samples * cutoff))
+                if len(profile) > 0 and profile not in profiles:
+                    profiles.append(profile)
+            
+            try:
+                self.profile.forget(note)
+            except KeyError:
+                pass
+            
+            for profile in profiles:
+                notes = sorted(profile, key=lambda n: note_to_semitone(*n))
+                print '  - %s' % (', '.join(unparse_note(*n) for n in notes))
+                
+                self.profile.add(get_note(note), profile)
+    
 def get_semitone(note):
     try:
         return int(note)
@@ -203,27 +179,79 @@ def get_semitone(note):
         except ValueError:
             raise ValueError('invalid note %r' % note)
 
+def get_note(note):
+    if isinstance(note, tuple):
+        return note
+    elif isinstance(note, basestring):
+        return parse_note(note)
+    elif isinstance(note, int):
+        return semitone_to_note(note)
+    else:
+        raise TypeError(type(note))
+
+def color(color_spec, text, *args):
+    colors = {
+        '': '',
+        'black': '30',
+        'red': '31',
+        'green': '32',
+        'yellow': '33',
+        'blue': '34',
+        'purple': '35',
+        'cyan': '36',
+        'white': '37'
+    }
+
+    if color_spec.endswith('!'):
+        bold = '1'
+        color_spec = color_spec[:-1]
+    else:
+        bold = '0'
+
+    if args:
+        text = text % args
+
+    color = colors[color_spec]
+    if color:
+        color = ';%s' % color
+    return '\x1b[%s%sm%s\x1b[0;00m' % (bold, color, text)
+
 if __name__ == '__main__':
     from optparse import OptionParser
     
     parser = OptionParser('%prog [options] [profile]')
+    parser.add_option('-c', '--create', metavar='NAME',
+        help='Create a new profile')
     parser.add_option('-i', '--interval', metavar='SAMPLES', type='int',
         help='FFT interval')
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
-    parser.set_defaults(interval=1024, window_size=4096)
+    parser.set_defaults(interval=1024, window_size=4096*4)
     
     options, args = parser.parse_args()
     
-    profiler = ProfileTool(options.window_size, options.interval)
+    filters = [
+        audio.CutoffFilter(4200.0),
+        audio.NegativeFilter(),
+        audio.CoalesceFilter(),
+        MinimumIntensityFilter(20.0),
+        SmoothFilter(4, 3)
+    ]
+    
+    listener = audio.Listener(window_size=options.window_size,
+        interval=options.interval, filters=filters)
+    
+    profiler = ProfileTool(listener)
     print 'Welcome to the Piano Hero instrument profiler.'
     
     if len(args) > 0:
         profiler.load(args[0])
+    elif options.create:
+        profiler.create(options.create)
     
     while True:
         try:
-            full_command = raw_input('profiler> ')
+            full_command = raw_input(color('purple!', 'profiler> '))
             parts = full_command.split(' ')
             command, arguments = parts[0], parts[1:]
             
@@ -254,13 +282,13 @@ if __name__ == '__main__':
                     
                     if is_range:
                         is_range = False
-                        for t in xrange(notes[-1], semitone + 1):
+                        for t in xrange(notes[-1] + 1, semitone + 1):
                             notes.append(t)
                     else:
                         notes.append(semitone)
                 else:
                     profiler.learn(*notes)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, EOFError):
             print
             break
         except:
@@ -268,5 +296,5 @@ if __name__ == '__main__':
             traceback.print_exc()
             continue
     
-    profiler.analyzer.stop()
+    profiler.capturer.stop()
     sys.exit(0)
