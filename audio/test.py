@@ -4,42 +4,7 @@ import audio
 import time
 import math
 from mstand.notes import *
-import operator
-
-class MinimumIntensityFilter(object):
-    def __init__(self, threshold):
-        self.threshold = threshold
-    
-    def __call__(self, samples):
-        return [(f, i) for (f, i) in samples if i >= self.threshold]
-
-class SmoothFilter(object):
-    def __init__(self, memory):
-        self.memory = memory
-        self._history = []
-    
-    def __call__(self, buckets):
-        self._history.append(set(f for f, i in buckets))
-        
-        if len(self._history) < self.memory:
-            return []
-        
-        self._history.pop(0)
-        
-        common_freqs = reduce(operator.and_, self._history)
-        return [(f, i) for (f, i) in buckets if f in common_freqs]
-
-class SineFilter(object):
-    def __call__(self, buckets):
-        return [(f, i) for (f, i) in buckets if i/(90*math.sin(f/(60*math.pi) + (3*math.pi)/2)+100) >= 1]
-        
-class LogFilter(object):
-    def __call__(self, buckets):
-        return [(f, i) for (f, i) in buckets if i/(math.log(f+1, 1.1) + 1) >= 1]
-        
-class SquareRootFilter(object):
-    def __call__(self, buckets):
-        return [(f, i) for (f, i) in buckets if i/((f/100)**2) >= 1]
+from mstand.filters import *
         
 def color(color_spec, text, *args):
     colors = {
@@ -76,25 +41,32 @@ if __name__ == '__main__':
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        # SineFilter(),
-        # LogFilter(),
-        # SquareRootFilter(),
-        MinimumIntensityFilter(10.0),
-        SmoothFilter(4)
+        MinimumIntensityFilter(15.0),
+        SmoothFilter(4, 2)
     ]
     
-    colors = ['blue!', 'green!', 'yellow!', 'red!', 'purple!', 'black!']
-    
-    try:
-        expected = note_to_freq(*parse_note(sys.argv[1]))
-        highlighted = [expected * (i + 1.0) for i in xrange(len(colors))]
+    notes = [note_to_freq(*parse_note(arg.upper())) for arg in sys.argv[1:]]
+    colors = ['cyan!', 'green!', 'yellow!', 'red!', 'purple!', 'white!']
+    if len(notes) == 1:
+        print "Overtone highlighting:",
+        
+        highlighted = [notes[0] * (i + 1.0) for i in xrange(len(colors))]
         
         for color_name, h_freq in zip(colors, highlighted):
             print color(color_name,
                 '%3s ' % unparse_note(*freq_to_note(h_freq))),
         print
-    except IndexError:
-        expected = ot_1 = ot_2 = ot_3 = 0.0
+    elif len(notes) > 1:
+        print "Note highlighting:",
+        colors = colors[:len(notes)]
+        highlighted = notes[:len(colors)]
+        
+        for color_name, h_freq in zip(colors, highlighted):
+            print color(color_name,
+                '%3s ' % unparse_note(*freq_to_note(h_freq))),
+        print
+    else:
+        highlighted = [0.0 for i in xrange(len(colors))]
     
     listener = audio.Listener(window_size=4096*4, interval=1024,
         filters=filters)
@@ -117,12 +89,14 @@ if __name__ == '__main__':
             notes.sort(key=lambda p: p[2], reverse=True)
             if len(notes) > 0:
                 for freq, note, power in notes:
-                    text = '%3s: %6.02f' % (note, power)
+                    text = '%3s: %6.02f ' % (note, power)
                     
                     for color_name, h_freq in zip(colors, highlighted):
                         if abs(h_freq - freq) < 2.0:
                             text = color(color_name, text)
                             break
+                    else:
+                        text = color('black!', text)
                     
                     print text,
                 print
