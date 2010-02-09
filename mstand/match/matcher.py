@@ -39,7 +39,7 @@ class Matcher(object):
     SHUTDOWN_SENTINEL = object()
     
     def __init__(self, notes, algorithm, profile, interpreter, change_listener,
-                 debug=False):
+                 debug=False, progress_listener=None):
         self.current_location = None
         self.previous_location = None
         self.miss_count = None
@@ -59,6 +59,7 @@ class Matcher(object):
         # print self.intervals
         self.insert_rests_between_identical_intervals(self.intervals)
         self.change_listener = change_listener
+        self.progress_listener = progress_listener
         
         algorithm.start_piece()
     
@@ -135,6 +136,10 @@ class Matcher(object):
                 self.history.popleft()
             
             location = self.algorithm.match(new_notes)
+            
+            if self.progress_listener is not None:
+                self.progress_listener(new_notes, location)
+            
             if location != self.current_location:
                 # we have moved!
                 self.previous_location = self.current_location
