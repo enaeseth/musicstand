@@ -192,6 +192,17 @@ class Matcher(object):
                 if start_time < interval.end and interval.start < end_time:
                     interval.notes.extend(note[3])
         
+        # XXX: this should not stay here
+        def fix_octave_numbering(note):
+            if note[1] in ('A', 'B'):
+                return (note[0] - 1, note[1], note[2])
+            else:
+                return note
+        
+        for interval in intervals:
+            interval.notes = [fix_octave_numbering(note)
+                for note in interval.notes]
+        
         return intervals
     
     def insert_rests_between_identical_intervals(self, intervals):
