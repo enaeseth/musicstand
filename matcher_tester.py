@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 from __future__ import with_statement
-from mstand.interpreter import Interpreter
+from mstand.interpret import OvertoneInterpreter
 from mstand.notes import *
 from mstand.newParser import parse_file
 from mstand.match.matcher import Matcher, Interval
@@ -44,6 +44,7 @@ def read_note_file(filename):
                     # default to increasing the position
                     expected_position += 1
             
+            line = re.sub(r'\s*[+.?]$', '', line)
             if is_silence(line):
                 command = ('pause', None, expected_position)
             else:
@@ -104,7 +105,7 @@ class Tester(object):
     SHUTDOWN_SENTINEL = object()
     
     def __init__(self, notes, instructions, algorithm, debug=False):
-        self.matcher = Matcher(notes, algorithm, None, Interpreter(),
+        self.matcher = Matcher(notes, algorithm, OvertoneInterpreter(),
             self.position_changed, progress_listener=self.matched,
             debug=options.debug)
         self.instructions = instructions

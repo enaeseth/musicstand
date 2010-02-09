@@ -38,7 +38,7 @@ class Matcher(object):
     # when the matcher loop encounters it, it will exit
     SHUTDOWN_SENTINEL = object()
     
-    def __init__(self, notes, algorithm, profile, interpreter, change_listener,
+    def __init__(self, notes, algorithm, interpreter, change_listener,
                  debug=False, progress_listener=None):
         self.current_location = None
         self.previous_location = None
@@ -52,7 +52,6 @@ class Matcher(object):
         algorithm.assign_matcher(self)
         
         self.algorithm = algorithm
-        self.profile = profile
         self.interpreter = interpreter
         self.incoming_notes = None # this gets created in .run()
         self.intervals = self.create_intervals(notes)
@@ -128,6 +127,8 @@ class Matcher(object):
                 # we're being told to stop
                 break
             elif new_notes == previous_notes:
+                if self.progress_listener is not None:
+                    self.progress_listener(new_notes, self.current_location)
                 continue
             previous_notes = new_notes
             

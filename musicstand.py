@@ -12,7 +12,7 @@ from __future__ import with_statement
 from mstand import notes
 from mstand import audio
 from mstand.filters import *
-from mstand.interpreter import Interpreter
+from mstand.interpret import ProfileInterpreter, OvertoneInterpreter
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
 from mstand.newParser import parse_file
@@ -27,7 +27,7 @@ from Tkinter import Tk
 from threading import Thread
 from time import sleep
 
-def run(algorithm, listener, profile, debug=False):
+def run(algorithm, listener, interpreter, debug=False):
     running = [True]
     display = None
     queue = None
@@ -60,7 +60,7 @@ def run(algorithm, listener, profile, debug=False):
         print "Song loaded: %s" % display.lilypond_file
         notes = parse_file(display.lilypond_file)
         # print notes
-        matcher[0] = Matcher(notes, algorithm, profile, Interpreter(),
+        matcher[0] = Matcher(notes, algorithm, interpreter,
             position_changed, debug)
         matcher[0].start()
         print "Started matcher."
@@ -72,7 +72,7 @@ def run(algorithm, listener, profile, debug=False):
     except KeyboardInterrupt:
         running[0] = False
 
-def main(algorithm, window_size, interval, profile, debug=False):
+def main(algorithm, window_size, interval, interpreter, debug=False):
     filters = [
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
@@ -84,7 +84,7 @@ def main(algorithm, window_size, interval, profile, debug=False):
     listener = audio.Listener(window_size=window_size, interval=interval,
         filters=filters)
     
-    run(algorithm, listener, profile, debug)
+    run(algorithm, listener, interpreter, debug)
 
 def get_algorithm(name):
     full_name = 'mstand.match.%s' % name
@@ -177,8 +177,9 @@ if __name__ == '__main__':
         
         with open(profile_name, 'rt') as stream:
             profile = read_profile(stream)
+        interpreter = ProfileInterpreter(profile)
     else:
-        profile = None
+        interpreter = OvertoneInterpreter()
         print >>sys.stderr, "warning: not using any profile!"
     
     # Do some sanity checks
@@ -187,5 +188,5 @@ if __name__ == '__main__':
     if not is_power_of_two(options.window_size):
         print >>sys.stderr, 'warning: FFT window size should be a power of two'
     
-    main(algorithm, options.window_size, options.interval, profile,
+    main(algorithm, options.window_size, options.interval, interpreter,
         options.debug)
