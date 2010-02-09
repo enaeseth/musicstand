@@ -3,7 +3,7 @@ import os.path
 
 files = ["audio.c", "devices.c", "queue.c", "ringbuffer.c", "filter.c",
     "listen.c", "filters/freq_cutoff.c", "filters/coalesce.c",
-    "filters/negative.c"]
+    "filters/negative.c", "filters/decibel.c"]
 
 audio_dir = os.path.dirname(__file__)
 files = [os.path.join(audio_dir, filename) for filename in files]

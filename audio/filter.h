@@ -46,6 +46,7 @@ extern PyTypeObject PythonFilterType;
 extern PyTypeObject CutoffFilterType;
 extern PyTypeObject CoalesceFilterType;
 extern PyTypeObject NegativeFilterType;
+extern PyTypeObject DecibelFilterType;
 
 #define FilterType_SUBCLASS(name, methods, doc) \
      PyTypeObject name ## Type = { \
