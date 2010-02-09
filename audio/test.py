@@ -42,6 +42,7 @@ if __name__ == '__main__':
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(15.0),
+        audio.DecibelFilter(),
         SmoothFilter(4, 2)
     ]
     
@@ -92,7 +93,7 @@ if __name__ == '__main__':
                     text = '%3s: %6.02f ' % (note, power)
                     
                     for color_name, h_freq in zip(colors, highlighted):
-                        if abs(h_freq - freq) < 2.0:
+                        if abs(h_freq - freq) < 3.0:
                             text = color(color_name, text)
                             break
                     else:
