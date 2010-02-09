@@ -4,6 +4,7 @@
 Reading, writing, and interpreting instrument profiles.
 """
 
+from __future__ import with_statement
 import re
 from threading import Thread, Condition
 from mstand.notes import *
@@ -156,12 +157,14 @@ class Profile(object):
         #     key=lambda n: note_to_semitone(*n)))
         
         winner = None
-        best_overlap = 0.0
-        for note in self.notes():
+        best_overlap = (0.0, 0.0)
+        for note in reversed(self.notes()):
             # print '  ' + unparse_note(*note),
             for i, pattern in enumerate(self[note]):
                 intersection = pattern & heard_notes
-                overlap = float(len(intersection)) / len(pattern)
+                inter_len = float(len(intersection))
+                overlap = (inter_len / len(pattern),
+                    inter_len / len(heard_notes))
                 # print '%d: %s (%.0f%%)' % (i + 1,
                 #     ' '.join(unparse_note(*n) for n in sorted(intersection,
                 #         key=lambda n: note_to_semitone(*n))), 100.0 * overlap),
