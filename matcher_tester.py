@@ -144,7 +144,10 @@ class Tester(object):
             if new_pos != expected_pos:
                 text_color = 'red'
                 stop = True
-                expectation_string = '; expected %d' % expected_pos
+                verb = 'move to' if expected_pos != last_expected_pos else \
+                    'stay at'
+                expectation_string = '; expected to %s %d' % \
+                    (verb, expected_pos)
             else:
                 text_color = 'green'
                 stop = False
