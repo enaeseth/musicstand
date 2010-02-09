@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 """
-Reading, writing, and interpreting instrument profiles.
+Reading, writing, and creating instrument profiles.
 """
 
 from __future__ import with_statement
