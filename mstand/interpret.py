@@ -59,14 +59,15 @@ class ProfileInterpreter(Interpreter):
         
         winner = None
         best_overlap = (0.0, 0.0)
-        for note in self.notes():
-            for i, pattern in enumerate(self[note]):
+        for note in reversed(self.notes()):
+            for pattern in self.mapping[note]:
                 intersection = pattern & heard_notes
                 inter_len = float(len(intersection))
                 overlap = (inter_len / len(pattern),
                     inter_len / len(heard_notes))
                 if overlap > best_overlap:
                     best_overlap = overlap
+                    winner = note
         
         return winner
     
@@ -76,6 +77,7 @@ class ProfileInterpreter(Interpreter):
                 'interpret chords')
         
         heard = self.match(self.heard_notes)
+        
         if len(current_notes) == 0:
             return heard is None
         else:

@@ -61,9 +61,14 @@ class SimpleAlgorithm(Algorithm):
                 # that would be before the start of the piece
                 continue
             
+            debug_new_notes = new_notes
+            if hasattr(self.matcher.interpreter, 'match'):
+                matched = self.matcher.interpreter.match(set(new_notes))
+                debug_new_notes = [matched] if matched else []
+            
             expected = self.intervals[position].notes
-            self.debug('%02d: %s =?= %s', position,
-                ', '.join(unparse_note(*note) for note in new_notes),
+            self.debug('%02d: [%s] =?= [%s]', position,
+                ', '.join(unparse_note(*note) for note in debug_new_notes),
                 ', '.join(unparse_note(*note) for note in expected))
             
             if self.matcher.interpreter.looks_like(expected):
