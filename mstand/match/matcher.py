@@ -38,7 +38,8 @@ class Matcher(object):
     # when the matcher loop encounters it, it will exit
     SHUTDOWN_SENTINEL = object()
     
-    def __init__(self, notes, algorithm, change_listener, debug=False):
+    def __init__(self, notes, algorithm, profile, interpreter, change_listener,
+                 debug=False):
         self.current_location = None
         self.previous_location = None
         self.miss_count = None
@@ -51,9 +52,11 @@ class Matcher(object):
         algorithm.assign_matcher(self)
         
         self.algorithm = algorithm
+        self.profile = profile
+        self.interpreter = interpreter
         self.incoming_notes = None # this gets created in .run()
         self.intervals = self.create_intervals(notes)
-        print self.intervals
+        # print self.intervals
         self.insert_rests_between_identical_intervals(self.intervals)
         self.change_listener = change_listener
         
@@ -112,10 +115,10 @@ class Matcher(object):
         Runs the matching loop.
         """
         
-        self.running = True
         self.incoming_notes = Queue(0)
         self.current_location = -1
         self.change_listener(self)
+        self.running = True
         previous_notes = None
         
         while self.running:
@@ -137,18 +140,9 @@ class Matcher(object):
                 self.previous_location = self.current_location
                 self.current_location = location
                 
-                if self.current_location >= 0:
-                    interval = self.intervals[self.current_location]
-                    print 'MOVING to %.3f (%s)' % (interval.start,
-                        ', '.join(notes.unparse_note(*n) for n in interval.notes))
-                else:
-                    print 'Just started.'
-                
                 self.change_listener(self)
-            elif self.current_location >= 0:
-                interval = self.intervals[self.current_location]
-                print 'Staying at %.3f (%s)' % (interval.start,
-                    ', '.join(notes.unparse_note(*n) for n in interval.notes))
+        
+        self.running = False
     
     def shutdown(self):
         """
@@ -170,7 +164,6 @@ class Matcher(object):
                     'through measure %d' % (note, note[1] * 100, note[0]))
             start_time = (note[0] - 1) + note[1]
             end_time = start_time + note[2]
-            print note, start_time, end_time
             times.add(start_time)
             times.add(end_time)
         

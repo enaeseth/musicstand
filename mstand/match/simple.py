@@ -26,18 +26,21 @@ class SimpleAlgorithm(Algorithm):
         self.last_notes = None
     
     def filter_frequencies(self, frequencies):
-        return map(freq_to_note, frequencies)
+        notes = map(freq_to_note, frequencies)
+        if self.matcher.profile is not None:
+            profiled = self.matcher.profile.match(notes)
+            notes = [profiled] if profiled is not None else []
+        return notes
     
     def match(self, new_notes):
         if new_notes:
-            new_notes = [freq_to_note(note_to_freq(*new_note))
-                for new_note in new_notes]
-            
             if all(new_note[0] < self.min_octave for new_note in new_notes):
                 # treat it as silence (XXX: is that the right thing to do?)
                 new_notes = []
         
-        print [unparse_note(*note) for note in new_notes]
+        self.matcher.interpreter.heard(new_notes)
+        
+        # print [unparse_note(*note) for note in new_notes]
         
         # if self.miss_count >= 4:
         #     staff = [i.notes[0][1] for i in self.matcher.intervals]
@@ -53,38 +56,26 @@ class SimpleAlgorithm(Algorithm):
         # else:
         #     print '-silence-, %d' % self.miss_count
         
-        was_subset = False
-        def matches(position):
-            if position < 0:
-                return False
-            
-            if not new_notes:
-                if position == 0:
-                    was_subset = True
-                return len(self.intervals[position].notes) == 0
-            
-            heard_letters = set(note[1] for note in new_notes)
-            expected_notes = self.intervals[position].notes
-            expected_letters = set(note[1] for note in expected_notes)
-            
-            print 'heard: %s; expected: %s' % (''.join(heard_letters), ''.join(expected_letters))
-            
-            if position == 0:
-                was_subset = heard_letters.issubset(expected_letters)
-            
-            self.debug('%s =?= %s', ''.join(heard_letters),
-                ''.join(expected_letters))
-            return heard_letters == expected_letters
-        
         # min(self.miss_count + 2, 4)
         for i in range(1, 2) + [0]:
-            if matches(self.current_location + i):
+            position = self.current_location + i
+            
+            if position < 0:
+                # that would be before the start of the piece
+                continue
+            
+            expected = self.intervals[position].notes
+            self.debug('%02d: %s =?= %s', position,
+                ', '.join(unparse_note(*note) for note in new_notes),
+                ', '.join(unparse_note(*note) for note in expected))
+            
+            if self.matcher.interpreter.looks_like(expected):
                 self.debug('found it on %d + %d' % (self.current_location, i))
                 self.current_location += i
                 self.miss_count = max(self.miss_count - (i + 1), 0)
                 break
         else:
-            if new_notes != self.last_notes and not was_subset:
+            if new_notes != self.last_notes:
                 self.miss_count += 1
         
         # self.debug('miss count is now %d' % self.miss_count)

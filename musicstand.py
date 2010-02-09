@@ -11,9 +11,12 @@ from __future__ import with_statement
 
 from mstand import notes
 from mstand import audio
+from mstand.filters import *
+from mstand.interpreter import Interpreter
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
 from mstand.newParser import parse_file
+from mstand.profile import *
 from mstand.display import Display
 
 import re
@@ -24,30 +27,7 @@ from Tkinter import Tk
 from threading import Thread
 from time import sleep
 
-class MinimumIntensityFilter(object):
-    def __init__(self, threshold):
-        self.threshold = threshold
-    
-    def __call__(self, samples):
-        return [(f, i) for (f, i) in samples if i >= self.threshold]
-
-class SmoothFilter(object):
-    def __init__(self, memory):
-        self.memory = memory
-        self._history = []
-    
-    def __call__(self, buckets):
-        self._history.append(set(f for f, i in buckets))
-        
-        if len(self._history) < self.memory:
-            return []
-        
-        self._history.pop(0)
-        
-        common_freqs = reduce(operator.and_, self._history)
-        return [(f, i) for (f, i) in buckets if f in common_freqs]
-
-def run(algorithm, listener, debug=False):
+def run(algorithm, listener, profile, debug=False):
     running = [True]
     display = None
     queue = None
@@ -80,7 +60,7 @@ def run(algorithm, listener, debug=False):
         print "Song loaded: %s" % display.lilypond_file
         notes = parse_file(display.lilypond_file)
         # print notes
-        matcher[0] = Matcher(notes, algorithm,
+        matcher[0] = Matcher(notes, algorithm, profile, Interpreter(),
             position_changed, debug)
         matcher[0].start()
         print "Started matcher."
@@ -92,19 +72,19 @@ def run(algorithm, listener, debug=False):
     except KeyboardInterrupt:
         running[0] = False
 
-def main(algorithm, window_size, interval, debug=False):
+def main(algorithm, window_size, interval, profile, debug=False):
     filters = [
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(50.0),
-        SmoothFilter(4)
+        MinimumIntensityFilter(20.0),
+        SmoothFilter(4, 3)
     ]
     
     listener = audio.Listener(window_size=window_size, interval=interval,
         filters=filters)
     
-    run(algorithm, listener, debug)
+    run(algorithm, listener, profile, debug)
 
 def get_algorithm(name):
     full_name = 'mstand.match.%s' % name
@@ -164,6 +144,8 @@ if __name__ == '__main__':
         help='the name of the matching algorithm to use')
     parser.add_option('-o', dest='algorithm_options', action='append',
         metavar='OPTION[=VALUE]', help='set an algorithm option')
+    parser.add_option('-p', '--profile', metavar='NAME',
+        help='use a profile (for great justice)')
     parser.add_option('-d', '--debug', action='store_true',
         help='show debugging output')
     parser.add_option('-i', '--interval', metavar='SAMPLES', type='int',
@@ -171,7 +153,7 @@ if __name__ == '__main__':
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
     parser.set_defaults(algorithm='simple', debug=False, interval=1024,
-        window_size=4096*4)
+        window_size=4096*4, profile=None)
     
     options, args = parser.parse_args()
     
@@ -183,11 +165,27 @@ if __name__ == '__main__':
     except ValueError, e:
         parser.error(e[0])
     
+    if options.profile:
+        profile_name = options.profile
+        if not profile_name.endswith('.phip'):
+            profile_name += '.phip'
+        if not os.path.exists(profile_name):
+            profile_name = os.path.join(os.path.dirname(__file__), 'profiles',
+                profile_name)
+        if not os.path.exists(profile_name):
+            parser.error('the requested profile could not be found')
+        
+        with open(profile_name, 'rt') as stream:
+            profile = read_profile(stream)
+    else:
+        profile = None
+        print >>sys.stderr, "warning: not using any profile!"
+    
     # Do some sanity checks
     if not is_power_of_two(options.interval):
         print >>sys.stderr, 'warning: FFT interval should be a power of two'
     if not is_power_of_two(options.window_size):
         print >>sys.stderr, 'warning: FFT window size should be a power of two'
     
-    main(algorithm, options.window_size, options.interval,
+    main(algorithm, options.window_size, options.interval, profile,
         options.debug)
