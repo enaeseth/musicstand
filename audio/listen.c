@@ -437,6 +437,21 @@ static fft_result_t* filter_and_create_result(ListenerObject* listener,
     return result;
 }
 
+static void blackman(sample_t* samples, size_t count)
+{
+    static double alpha = 0.16;
+    double a_2 = (alpha / 2);
+    static double pies = M_PI * 2.0;
+    size_t i;
+    size_t almost = count - 1;
+    
+    for (i = 0; i < count; i++) {
+        double mult = ((1-alpha) / 2) - 0.5 * cos(pies * i / almost) +
+            a_2 * cos(2 * pies * i / almost);
+        samples[i] *= mult;
+    }
+}
+
 static void* audio_listener_analyze(void* data)
 {
     ListenerObject* self = (ListenerObject*) data;
@@ -492,6 +507,8 @@ static void* audio_listener_analyze(void* data)
         }
         
         ringbuffer_advance_read(self->staging_buffer, advance_size);
+        
+        blackman(peek_dest, self->window_size);
         
 #ifndef SINGLE_PRECISION_FFT
         for (size_t i = 0; i < self->window_size; i++) {
