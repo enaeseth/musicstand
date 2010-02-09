@@ -19,6 +19,10 @@ def read_note_file(filename):
         parts = re.split(r'\*,\s*|\s+', line)
         return [note_to_freq(*parse_note(part)) for part in parts]
     
+    def is_silence(line):
+        text = line.lower()
+        return text.startswith('pause') or text.startswith('silence')
+    
     with open(filename, 'rt') as f:
         expected_position = -1
         for line in f:
@@ -29,6 +33,8 @@ def read_note_file(filename):
             elif line.endswith('.'):
                 # stay put
                 pass
+            elif line.endswith('?'):
+                expected_position = None
             else:
                 parts = re.split(r'\s*([-=]>|➔|➞|➝)\s*', line)
                 if len(parts) > 1:
@@ -38,7 +44,7 @@ def read_note_file(filename):
                     # default to increasing the position
                     expected_position += 1
             
-            if line.lower().startswith('pause'):
+            if is_silence(line):
                 command = ('pause', None, expected_position)
             else:
                 command = ('play', parse_line_notes(line), expected_position)
@@ -122,7 +128,21 @@ class Tester(object):
             while self.matcher.running:
                 sleep(0.2)
     
+    def _describe_interval(self, i):
+        if i >= 0:
+            interval = self.matcher.intervals[i]
+        else:
+            # i = -1, which isn't a real interval
+            # synthesize one here for display purposes
+            interval = Interval(-1.0, 0.0, [])
+        
+        note_string = ', '.join(unparse_note(*note) for note in interval.notes)
+        
+        return '%d (%.3f:%.3f%s)' % (i, interval.start, interval.end,
+            ('; ' + note_string if note_string else ''))
+    
     def _run(self):
+        last_pos = -1
         last_expected_pos = -1
         for action, arg, expected_pos in self.instructions:
             if action == 'pause':
@@ -135,45 +155,52 @@ class Tester(object):
             else:
                 raise ValueError(action)
             
+            # wait for the matcher to call our matched() method, and for
+            # matched() to send us the matcher's new position through the queue
             new_pos = self._position_queue.get()
-            if new_pos == last_expected_pos:
+            
+            if new_pos == last_pos:
                 message = 'Stayed at'
             else:
                 message = 'Moved to'
             
-            if new_pos != expected_pos:
+            # assess what happened:
+            stop = False
+            if expected_pos is None:
+                # we didn't care where we went (instruction ended with ?)
+                text_color = 'yellow'
+            elif new_pos != expected_pos:
+                # we didn't go where we expected
                 text_color = 'red'
                 stop = True
-                verb = 'move to' if expected_pos != last_expected_pos else \
-                    'stay at'
-                expectation_string = '; expected to %s %d' % \
-                    (verb, expected_pos)
+                verb = 'move to' if expected_pos != last_pos else 'stay at'
+                expectation_string = '; expected to %s %s' % \
+                    (verb, self._describe_interval(expected_pos))
             else:
+                # we went where we expected
                 text_color = 'green'
-                stop = False
                 expectation_string = ''
             
-            if new_pos >= 0:
-                interval = self.matcher.intervals[new_pos]
-            else:
-                interval = Interval(-1.0, 0.0, [])
+            # display what happened
             
-            if new_pos == last_expected_pos:
+            if new_pos == last_pos:
                 message = 'Stayed at'
             else:
                 message = 'Moved to'
             
-            note_string = ('' if not interval.notes else
-                '; ' +
-                    ', '.join(unparse_note(*note) for note in interval.notes))
-            print color(text_color, '<-- %s %d (%.3f:%.3f%s)%s.',
-                message, new_pos, interval.start, interval.end, note_string,
-                expectation_string)
+            print color(text_color, '<-- %s %s%s.', message,
+                self._describe_interval(new_pos), expectation_string)
             
             if stop:
                 break
             
-            last_expected_pos = expected_pos
+            # if we didn't care where we went on this step (i.e., the line for
+            # this instruction ended with '?'), save our new position as the
+            # last-expected position; otherwise, save the actual last-expected
+            # position
+            last_expected_pos = expected_pos if expected_pos is not None \
+                else new_pos
+            last_pos = new_pos
             sleep(0.5)
 
 if __name__ == '__main__':
@@ -191,8 +218,10 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
     
     try:
+        # read the instruction file
         instructions = read_note_file(args[0])
-    
+        
+        # read the LilyPond score
         if not args[1].endswith('.ly'):
             parser.error('looks like you did that backwards')
         notes = parse_file(args[1])
@@ -207,5 +236,6 @@ if __name__ == '__main__':
     except ValueError, e:
         parser.error(e[0])
     
+    # run the test
     tester = Tester(notes, instructions, algorithm, options.debug)
     tester.test()
