@@ -37,8 +37,15 @@ class Interpreter(object):
     
     def heard(self, heard_frequencies):
         '''The FFT thing should call this.'''
-        self.heard_notes = set(freq_to_note(freq)
-            for freq, intensity in heard_frequencies)
+        
+        # XXX: this sucks
+        if len(heard_frequencies) == 0:
+            self.heard_notes = set()
+        elif len(heard_frequencies[0]) == 2:
+            self.heard_notes = set(freq_to_note(freq)
+                for freq, intensity in heard_frequencies)
+        else:
+            self.heard_notes = set(heard_frequencies)
     
     def looks_like(self, current_notes):
         '''The matcher should call this. It will return True to the matcher
