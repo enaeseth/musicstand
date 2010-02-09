@@ -10,8 +10,6 @@ typedef struct {
     FilterObject_HEAD
 } DecibelFilterObject;
 
-#define MAX(x, y) ((x) > (y)) ? (x) : (y)
-
 static int DecibelFilter_Execute(DecibelFilterObject* self, size_t* length_ptr,
     bucket_t* buckets)
 {
