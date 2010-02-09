@@ -45,6 +45,9 @@ def add_multiple(pitch):
     new_pitch, new_acc = pitch_dict[pitch-(12*(octave+1))][0], pitch_dict[pitch-(12*(octave+1))][1]
     return (octave, new_pitch, new_acc)
 
+def is_current(generated_file, source_file):
+    return os.path.getmtime(generated_file) >= os.path.getmtime(source_file)
+
 def parse_file(filename):
     mf2t = os.path.join(os.path.dirname(__file__), './mf2t')
     
@@ -52,7 +55,9 @@ def parse_file(filename):
     if ext != '.midi':
         filename = base + '.midi'
     
-    os.system('"%s" "%s" > "%s.txt"' % (mf2t, filename, filename))
+    output = '%s.txt' % filename
+    if not os.path.exists(output) or not is_current(output, filename):
+        os.system('"%s" "%s" > "%s"' % (mf2t, filename, output))
     
     filename = '%s.txt' % filename
     notes = []
