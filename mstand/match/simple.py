@@ -27,9 +27,6 @@ class SimpleAlgorithm(Algorithm):
     
     def filter_frequencies(self, frequencies):
         notes = map(freq_to_note, frequencies)
-        if self.matcher.profile is not None:
-            profiled = self.matcher.profile.match(notes)
-            notes = [profiled] if profiled is not None else []
         return notes
     
     def match(self, new_notes):
