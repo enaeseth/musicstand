@@ -147,33 +147,9 @@ class Profile(object):
         self.name = name
         self._mapping = mapping or {}
     
-    def match(self, heard_notes):
-        if len(heard_notes) == 0:
-            return None
-        if not isinstance(heard_notes, set):
-            heard_notes = set(heard_notes)
-        
-        # print ' '.join(unparse_note(*n) for n in sorted(heard_notes,
-        #     key=lambda n: note_to_semitone(*n)))
-        
-        winner = None
-        best_overlap = (0.0, 0.0)
-        for note in reversed(self.notes()):
-            # print '  ' + unparse_note(*note),
-            for i, pattern in enumerate(self[note]):
-                intersection = pattern & heard_notes
-                inter_len = float(len(intersection))
-                overlap = (inter_len / len(pattern),
-                    inter_len / len(heard_notes))
-                # print '%d: %s (%.0f%%)' % (i + 1,
-                #     ' '.join(unparse_note(*n) for n in sorted(intersection,
-                #         key=lambda n: note_to_semitone(*n))), 100.0 * overlap),
-                if overlap > best_overlap:
-                    best_overlap = overlap
-                    winner = note
-            # print
-        
-        return winner
+    @property
+    def mapping(self):
+        return self._mapping
     
     def clear(self):
         self._mapping = {}
