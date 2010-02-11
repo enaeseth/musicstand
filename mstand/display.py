@@ -1,6 +1,7 @@
 '''
 THINGS TO NOTE:
-we start measures at 0!
+-we start measures at 0!
+-config file currently being overwritten when new song is loaded
 
 '''
 
