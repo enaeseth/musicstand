@@ -7,6 +7,7 @@ Profile musical instruments so that we know WTF is going on because daaaaaaamn.
 from __future__ import with_statement
 from mstand import audio
 from mstand.filters import *
+from mstand.interpret import ProfileInterpreter
 from mstand.notes import *
 from mstand.profile import *
 from time import sleep
@@ -49,6 +50,7 @@ class ProfileTool(object):
                 print >>sys.stderr, 'error: %s' % e
             else:
                 self.filename = filename
+                self.interpreter = ProfileInterpreter(self.profile)
                 print 'Loaded %s.' % filename
     
     def save(self, filename=None):
@@ -187,7 +189,7 @@ class ProfileTool(object):
                     print color('black!', ' '.join('%3s' % unparse_note(*note)
                         for note in
                         sorted(notes, key=lambda n: note_to_semitone(*n))))
-                new_note = self.profile.match(notes)
+                new_note = self.interpreter.match(notes)
                 
                 if last_note is not new_note:
                     if new_note is None:
