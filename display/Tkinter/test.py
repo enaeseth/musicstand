@@ -6,32 +6,42 @@ import Image, ImageTk
 
 class MakeLilyPond:
 	def __init__(self, parent):
-		self.lilypond_window = Toplevel(parent)
-		self.lilypond_window.title("O HAI")
-		self.lilypond_window.geometry('500x250+900+100')
-		self.top_frame = Frame(self.lilypond_window)
-		self.top_frame.pack()
-		
 		self.title = None
 		self.lilypond_text = []
 		self.initialize_lilypond_string()
 		
-		container = Frame(self.lilypond_window, width = 500, height = 500)
+		self.lilypond_window = Toplevel(parent)
+		self.lilypond_window.title("O HAI")
+		self.lilypond_window.geometry('500x250+900+100')
 		
-		self.buttons_frame = Frame(self.top_frame)
-		self.buttons_frame.pack(side=TOP)
+		# how the hell does grid work?
 		
-		self.quit_button = Button(self.buttons_frame, command = self.quit,text="Quit")
-		self.quit_button.pack(side=LEFT)
+		self.top_frame = Frame(self.lilypond_window)
+		self.top_frame.grid()
 		
-		self.add_title_button = Button(self.buttons_frame, command = self.add_title,text="Set title")
-		self.add_title_button.pack(side=LEFT)
+		self.main_buttons_frame = Frame(self.top_frame)
+		self.main_buttons_frame.grid()
 		
-		self.add_note_button = Button(self.buttons_frame, command = self.add_note, text = "Add note")
-		self.add_note_button.pack(side=LEFT)
+		self.note_buttons_frame = Frame(self.top_frame)
+		self.note_buttons_frame.grid()
 		
-		self.add_create_button = Button(self.buttons_frame, command = self.write_to_file, text="Create!")
-		self.add_create_button.pack(side=LEFT)
+		self.quit_button = Button(self.main_buttons_frame, \
+			command = self.quit,text="Quit")
+		self.quit_button.grid(column=0,row=0)
+		
+		self.add_create_button = Button(self.main_buttons_frame, \
+			command = self.write_to_file, text="Create!")
+		self.add_create_button.grid(column=3,row=3)
+		
+		'''
+		self.add_title_button = Button(self.note_buttons_frame, \
+			command = self.add_title,text="Set title")
+		self.add_title_button.grid()
+		
+		self.add_note_button = Button(self.note_buttons_frame, \
+			command = self.add_note, text = "Add note")
+		self.add_note_button.grid()
+		'''
 		
 		
 	def initialize_lilypond_string(self):
@@ -39,7 +49,7 @@ class MakeLilyPond:
 		self.lilypond_text.append("\\header { \n")
 		self.lilypond_text.append("\\title=\"Untitled\" \n")
 		self.lilypond_text.append("}\n") # close \header
-		self.lilypond_text.append("\\relative { \n")
+		self.lilypond_text.append("\\relative c' { \n")
 		self.lilypond_text.append("\\time 4/4 \n")
 		self.lilypond_text.append("") # this is where notes will go
 		self.lilypond_text.append("}\n") # close \relative
@@ -52,7 +62,9 @@ class MakeLilyPond:
 	
 	def write_to_file(self):
 		
-		outfile = open("newsong.ly",'w')
+		file_name = "newsong.ly"
+		
+		outfile = open(file_name,'w')
 		for item in self.lilypond_text:
 			outfile.write(item)
 		outfile.close()
@@ -60,15 +72,14 @@ class MakeLilyPond:
 		if self.title:
 			folder_name = ''
 			for word in title.lower().split():
-				folder_name += word
-			foldername += ".txt"
+				folder_name += word 
 		else: # If no title set, use the current time
 			cur_time = time.localtime()
 			folder_name = str(cur_time[3]) + str(cur_time[2]) + str(cur_time[1]) \
 				+str(cur_time[0])
 
 		# NEED TO IMPORT SOME STUFF?
-		#create_lilypond_files()
+		#create_lilypond_files(file_name,folder_name)
 	
 	def add_title(self):
 		pass
