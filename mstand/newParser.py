@@ -28,8 +28,8 @@ class Note(object):
 
     def pitch_to_note(self,pitch):
         pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'],
-                      7:['G',None],8:['G','sharp'],-3:['A',None],-2:['B','flat'],-1:['B',None]}
-        self.octave = ((pitch+3)/12)-1
+                      7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
+        self.octave = ((pitch)/12)-1
         norm_pitch = pitch-(12*(self.octave+1))
         new_pitch = pitch_dict[norm_pitch]
         self.pitch = new_pitch[0]
