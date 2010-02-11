@@ -59,7 +59,7 @@ class ProfileInterpreter(Interpreter):
         
         winner = None
         best_overlap = (0.0, 0.0)
-        for note in reversed(self.notes()):
+        for note in self.notes():
             for pattern in self.mapping[note]:
                 intersection = pattern & heard_notes
                 inter_len = float(len(intersection))
