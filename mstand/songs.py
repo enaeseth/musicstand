@@ -32,6 +32,7 @@ def add_song(title):
                     # got it already
                     return
             print >>f, title
+            return
     except IOError, e:
         if e.errno != 2:
             raise
