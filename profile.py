@@ -82,7 +82,7 @@ class ProfileTool(object):
         except ValueError:
             return note_to_semitone(*parse_note(note))
     
-    def show(self, note=None):
+    def show(self, *notes):
         if self.profile is None:
             print >>sys.stderr, 'error: no profile is loaded'
             return
@@ -97,21 +97,21 @@ class ProfileTool(object):
                 print ', '.join(unparse_note(*note) for note in
                     sorted(pattern, key=lambda n: note_to_semitone(*n)))
         
-        if note is not None:
-            try:
-                semitone = int(note)
-            except (TypeError, ValueError):
-                note = parse_note(note)
-            else:
-                note = semitone_to_note(semitone)[0]
-            
-            try:
-                patterns = self.profile[note]
-            except KeyError:
-                print >>sys.stderr, 'error: profile %r has no frequencies ' \
-                    'recorded at semitone %d' % semitone
-            
-            show_patterns(note, patterns)
+        if notes:
+            for note in notes:
+                try:
+                    semitone = int(note)
+                except (TypeError, ValueError):
+                    note = parse_note(note)
+                else:
+                    note = semitone_to_note(semitone)[0]
+                
+                try:
+                    patterns = self.profile[note]
+                except KeyError:
+                    pass
+                else:
+                    show_patterns(note, patterns)
         else:
             print '%s:' % self.profile.name
             for note in self.profile.notes():
@@ -173,10 +173,15 @@ class ProfileTool(object):
                 
                 self.profile.add(note, profile)
     
-    def interpret(self, verbose=None):
-        print 'Play a note.'
+    def interpret(self, *options):
+        verbose = any(opt in ('-v', '--verbose') for opt in options)
+        continuous = any(opt in ('-c', '--continuous') for opt in options)
+        was_silence = [False]
         
-        verbose = verbose in ('-v', 'verbose')
+        if continuous:
+            print 'Play some notes. Press ^C to stop interpreting.'
+        else:
+            print 'Play a note.'
         
         def do_interpretation():
             last_note = None
@@ -195,16 +200,22 @@ class ProfileTool(object):
                     if new_note is None:
                         print color('yellow!', '-silence-')
                     else:
+                        was_silence[0] = False
                         print color('green!', unparse_note(*new_note))
                     last_note = new_note
         
-        try:
-            self.capturer.forward(do_interpretation)
-        except KeyboardInterrupt:
-            self.capturer.stop()
-            print
-            print 'Aborted.'
-            return
+        while True:
+            try:
+                self.capturer.forward(do_interpretation)
+            except KeyboardInterrupt:
+                print
+                return
+            
+            if not continuous:
+                break
+            if not was_silence[0]:
+                was_silence[0] = True
+                # print color('yellow!', '-silence-')
     
 def get_semitone(note):
     try:
