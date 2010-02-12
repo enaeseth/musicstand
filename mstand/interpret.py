@@ -58,16 +58,20 @@ class ProfileInterpreter(Interpreter):
             return None
         
         winner = None
-        best_overlap = (0.0, 0.0)
+        best_overlap = (0.0, 0.0, 0)
+        # print ', '.join(unparse_note(*note) for note in heard_notes) + ':'
         for note in self.notes():
-            for pattern in self.mapping[note]:
+            # print '  ' + unparse_note(*note),
+            for i, pattern in enumerate(self.mapping[note]):
                 intersection = pattern & heard_notes
                 inter_len = float(len(intersection))
                 overlap = (inter_len / len(pattern),
-                    inter_len / len(heard_notes))
+                    inter_len / len(heard_notes), -i)
+                # print '%r: %r' % ([unparse_note(*n) for n in pattern], overlap),
                 if overlap > best_overlap:
                     best_overlap = overlap
                     winner = note
+            # print
         
         return winner
     
