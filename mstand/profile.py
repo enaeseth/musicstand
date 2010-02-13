@@ -164,6 +164,7 @@ class Profile(object):
     def add(self, note, component_notes):
         try:
             self._mapping[note].append(component_notes)
+            self._mapping[note].sort(key=lambda pat: len(pat), reverse=True)
         except KeyError:
             self._mapping[note] = [component_notes]
     
