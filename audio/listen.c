@@ -490,8 +490,6 @@ static void* audio_listener_analyze(void* data)
         gil_required = FilterChain_RequiresGIL(self->filter_chain);
     
     if (gil_required) {
-        fprintf(stderr,
-            "warning: frequency filtering will require the Python GIL\n");
         gil_state = PyGILState_Ensure();
         Py_UNBLOCK_THREADS
     }
