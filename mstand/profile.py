@@ -87,7 +87,11 @@ class Capturer(object):
             
             self._silence_count = None
             self._forward_target = generator
-            self._sync.wait()
+            try:
+                while self._forward_target is not None:
+                    self._sync.wait(0.2)
+            finally:
+                self._forward_target = None
     
     def _run(self):
         with self._sync:
