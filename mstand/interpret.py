@@ -5,6 +5,7 @@ Smart interpretation of heard notes.
 """
 
 from notes import *
+import math
 
 class Interpreter(object):
     """
@@ -92,28 +93,23 @@ class OvertoneInterpreter(Interpreter):
     An interpreter that looks for overtones.
     """
     
-    def overtones(self, frequencies):
-        """
-        For all the given frequencies, check if either that frequency or one
-        of its first few harmonics has been heard.
-        """
-        
-        def has_overtone(freq):
-            """
-            Checks if a single frequency has really been "heard".
-            """
-            
-            # check if the note was heard, or any of its first five harmonics
-            # were heard
-            return any(freq_to_note(freq * i) in self.heard_notes
-                for i in xrange(1, 7))
-        
-        # check that has_overtone returns true for all the frequencies
-        return all(has_overtone(freq) for freq in frequencies)
-    
     def looks_like(self, current_notes):
-        '''The matcher should call this. It will return True to the matcher
-        if any harmonic of the note has been heard, and False otherwise.
-        Currently, chords need to be 100% correct to get a True.'''
+        """
+        The matcher should call this. 
+        It will return True if, for every expected note, either the expected note
+        or at least three of its overtones are present. (Currently, chords need to 
+        be 100% correct to get a True.)
+        """
         
-        return self.overtones(note_to_freq(*note) for note in current_notes)
+        matched_notes = []
+        for expected_note in current_notes:
+            num_overtones = 0
+            for heard_note in self.heard_notes:
+                if expected_note == heard_note:
+                    matched_notes.append(expected_note)
+                elif (float(note_to_freq(*heard_note))/note_to_freq(*expected_note) == 
+                    math.floor(note_to_freq(*heard_note)/note_to_freq(*expected_note))):
+                    num_overtones += 1
+            if num_overtones > 2:
+                matched_notes.append(expected_note)
+        return set(current_notes).issubset(set(matched_notes))
