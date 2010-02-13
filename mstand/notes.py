@@ -6,6 +6,54 @@ Find the frequencies of chromatic scale notes.
 
 import re
 import math
+from operator import itemgetter as _itemgetter
+
+class Note(tuple):
+    """
+    Note(octave, note, accidental): a chromatic scale musical note.
+    """
+    
+    __slots__ = ()
+    
+    octave = property(_itemgetter(0))
+    note = property(_itemgetter(1))
+    letter = property(_itemgetter(1))
+    accidental = property(_itemgetter(2))
+    
+    def __new__(cls, octave, note, accidental):
+        return tuple.__new__(cls, (octave, note, accidental))
+    
+    def __repr__(self):
+        return 'Note(%r, %r, %r)' % self
+    
+    def __str__(self):
+        return unparse_note(*self)
+    
+    def __cmp__(self, other):
+        try:
+            if len(other) != 3:
+                return NotImplemented
+        except TypeError:
+            return NotImplemented
+        
+        for i in xrange(3):
+            result = cmp(self[i], other[i])
+            if result != 0:
+                return result
+        
+        return 0
+    
+    @property
+    def frequency(self):
+        return note_to_freq(*self)
+    
+    @classmethod
+    def parse(cls, text):
+        return cls(*parse_note(text))
+    
+    @classmethod
+    def from_frequency(cls, freq):
+        return cls(*freq_to_note(freq))
 
 def note_to_semitone(octave, note, accidental):
     notes = {
