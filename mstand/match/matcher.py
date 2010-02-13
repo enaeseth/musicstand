@@ -12,7 +12,7 @@ import re
 from Queue import Queue, Empty
 from threading import Thread, Event
 from collections import deque
-from mstand import notes
+from mstand.notes import *
 
 class Interval(object):
     """
@@ -55,7 +55,7 @@ class Matcher(object):
         self.interpreter = interpreter
         self.incoming_notes = None # this gets created in .run()
         self.intervals = self.create_intervals(notes)
-        # print self.intervals
+        
         self.insert_rests_between_identical_intervals(self.intervals)
         self.change_listener = change_listener
         self.progress_listener = progress_listener
@@ -192,17 +192,6 @@ class Matcher(object):
             for interval in intervals:
                 if start_time < interval.end and interval.start < end_time:
                     interval.notes.extend(note[3])
-        
-        # XXX: this should not stay here
-        def fix_octave_numbering(note):
-            if note[1] in ('A', 'B'):
-                return (note[0] - 1, note[1], note[2])
-            else:
-                return note
-        
-        for interval in intervals:
-            interval.notes = [fix_octave_numbering(note)
-                for note in interval.notes]
         
         return intervals
     
