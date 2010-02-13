@@ -37,24 +37,8 @@ class SimpleAlgorithm(Algorithm):
         
         self.matcher.interpreter.heard(new_notes)
         
-        # print [unparse_note(*note) for note in new_notes]
-        
-        # if self.miss_count >= 4:
-        #     staff = [i.notes[0][1] for i in self.matcher.intervals]
-        #     self.miss_count = 0
-        #     self.debug('looking for %r' % self.last_heard)
-        #     self.current_location = where_are_we(staff, self.last_heard)
-        #     self.debug("DTW'ing our way to %r" % self.current_location)
-        #     return self.current_location
-        
-        # if new_note is not None:
-        #     print '%s (%s), %d' % (new_note[1], unparse_note(*new_note),
-        #         self.miss_count)
-        # else:
-        #     print '-silence-, %d' % self.miss_count
-        
-        # min(self.miss_count + 2, 4)
-        for i in range(1, 2) + [0]:
+        old_miss_count = self.miss_count
+        for i in range(1, 1 + max(1, 1 + min(self.miss_count, 1))) + [0]:
             position = self.current_location + i
             
             if position < 0:
@@ -66,20 +50,31 @@ class SimpleAlgorithm(Algorithm):
                 matched = self.matcher.interpreter.match(set(new_notes))
                 debug_new_notes = [matched] if matched else []
             
-            expected = self.intervals[position].notes
+            try:
+                expected = self.intervals[position].notes
+            except IndexError:
+                # well, there isn't any interval there
+                # we must be close to the end of the piece
+                # that's exciting, but we should not crash here
+                continue
+            
             self.debug('%02d: [%s] =?= [%s]', position,
                 ', '.join(unparse_note(*note) for note in debug_new_notes),
                 ', '.join(unparse_note(*note) for note in expected))
             
             if self.matcher.interpreter.looks_like(expected):
-                self.debug('found it on %d + %d' % (self.current_location, i))
+                if i > 0:
+                    self.debug('moving forward by %d to %d',
+                        i, self.current_location + i)
                 self.current_location += i
-                self.miss_count = max(self.miss_count - (i + 1), 0)
+                self.miss_count = 0
+                # self.miss_count = max(self.miss_count - (i + 1), 0)
                 break
         else:
             if new_notes != self.last_notes:
                 self.miss_count += 1
         
-        # self.debug('miss count is now %d' % self.miss_count)
+        if self.miss_count != old_miss_count:
+            self.debug('miss count is now %d' % self.miss_count)
         self.last_notes = new_notes
         return self.current_location
