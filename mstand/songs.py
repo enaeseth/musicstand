@@ -61,7 +61,7 @@ def create_lilypond_files(file_path, song_name):
         os.makedirs(cache_dir)
         
         subprocess.check_call(['cp', file_path, cache_dir])
-
+    
     lilypond_path = os.path.join(os.path.dirname(__file__), 'lilypond.sh')
     new_path = os.path.join(cache_dir, file_name)
     
@@ -76,7 +76,7 @@ def create_lilypond_files(file_path, song_name):
     file_base = os.path.splitext(file_name)[0]
     pdf_name = os.path.join(cache_dir, file_base + ".pdf")
     png_name = os.path.join(cache_dir, file_base + ".png")
-        
+    
     # Convert PDF to pictures
     print "Converting PDF to images...",
     os.system("convert -density 400 " + pdf_name + " -resize 25% " + png_name )
