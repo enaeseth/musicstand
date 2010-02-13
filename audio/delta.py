@@ -91,11 +91,8 @@ if __name__ == '__main__':
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        # SineFilter(),
-        # LogFilter(),
-        # SquareRootFilter(),
         MinimumIntensityFilter(20.0),
-        SmoothFilter(4, 3)
+        # SmoothFilter(4, 3)
     ]
     
     listener = audio.Listener(window_size=4096*4, interval=1024,
@@ -141,8 +138,8 @@ if __name__ == '__main__':
                 note = '%-3s' % note
                 if tone in new_notes:
                     print color('green!', note),
-                elif tone in dead_notes:
-                    print color('red!', note),
+                # elif tone in dead_notes:
+                #     print color('red!', note),
                 elif tone in normal_notes:
                     print note,
                 else:
@@ -151,6 +148,7 @@ if __name__ == '__main__':
             
             active_notes = current_notes
     
+    silence_count = None
     while True:
         try:
             offset, buckets, data = queue.pop()
@@ -158,13 +156,17 @@ if __name__ == '__main__':
             if len(buckets) == 0:
                 if len(notes) > 0:
                     iterations.append(datetime.now())
-                    print_profile()
-                    notes.clear()
+                    silence_count += 1
+                    
+                    if silence_count >= 10:
+                        print_profile()
+                        notes.clear()
             else:
                 if len(notes) == 0:
                     print color('yellow!', 'Listening, please wait...')
                     start_time = datetime.now()
                     iterations = []
+                    silence_count = 0
                 
                 i = len(iterations)
                 iterations.append(datetime.now())

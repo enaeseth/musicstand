@@ -51,7 +51,7 @@ if __name__ == '__main__':
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(15.0),
-        audio.DecibelFilter(),
+        # audio.DecibelFilter(),
         SmoothFilter(4, 2)
     ]
     
