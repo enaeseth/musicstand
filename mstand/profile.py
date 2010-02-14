@@ -5,9 +5,10 @@ Reading, writing, and creating instrument profiles.
 """
 
 from __future__ import with_statement
-import re
 from threading import Thread, Condition
 from mstand.notes import *
+import os.path
+import re
 
 class Capturer(object):
     """
@@ -197,6 +198,22 @@ class Profile(object):
 
 class ProfileReadError(ValueError):
     pass
+
+def get_profile_storage_dir():
+    raw = os.path.join(os.path.dirname(__file__), '..', 'profiles')
+    return os.path.normpath(raw)
+
+def load_profile(filename):
+    if os.path.splitext(filename)[1] != '.phip':
+        filename += '.phip'
+    
+    if not os.path.exists(filename):
+        standard = os.path.join(get_profile_storage_dir(), filename)
+        if os.path.exists(standard):
+            filename = standard
+    
+    with open(filename, 'rt') as stream:
+        return read_profile(stream)
 
 def read_profile(stream):
     header = stream.readline()
