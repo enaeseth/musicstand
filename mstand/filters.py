@@ -7,12 +7,26 @@ Frequency filters (implemented in Python).
 import operator
 from collections import defaultdict
 
+def get_standard_filters():
+    import audio
+    
+    return [
+        audio.CutoffFilter(4200.0),
+        audio.NegativeFilter(),
+        audio.CoalesceFilter(),
+        MinimumIntensityFilter(20.0),
+        SmoothFilter(2, 4)
+    ]
+
 class MinimumIntensityFilter(object):
     def __init__(self, threshold):
         self.threshold = threshold
     
     def __call__(self, samples):
         return [(f, i) for (f, i) in samples if i >= self.threshold]
+    
+    def __repr__(self):
+        return '%s(%r)' % (type(self).__name__, self.threshold)
 
 class HistoryList(list):
     def __init__(self, capacity):
@@ -89,3 +103,7 @@ class SmoothFilter(object):
         result.sort(key=lambda p: p[0])
         
         return result
+    
+    def __repr__(self):
+        return '%s(%r, %r)' % (type(self).__name__, self.in_requirement,
+            self.out_requirement)
