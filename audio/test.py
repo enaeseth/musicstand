@@ -51,8 +51,8 @@ if __name__ == '__main__':
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(15.0),
-        # audio.DecibelFilter(),
-        SmoothFilter(4, 2)
+        audio.DecibelFilter(),
+        SmoothFilter(2, 4)
     ]
     
     notes = [note_to_freq(*parse_note(arg.upper())) for arg in sys.argv[1:]]
@@ -68,15 +68,22 @@ if __name__ == '__main__':
         print
     elif len(notes) > 1:
         print "Note highlighting:",
-        colors = colors[:len(notes)]
         highlighted = notes[:len(colors)]
+        
+        i = 2.0
+        while len(highlighted) + len(notes) <= len(colors):
+            highlighted += [freq * i for freq in notes]
+            i += 1
+        highlighted = list(set(highlighted))
+        highlighted.sort()
+        colors = colors[:len(highlighted)]
         
         for color_name, h_freq in zip(colors, highlighted):
             print color(color_name,
                 '%3s ' % unparse_note(*freq_to_note(h_freq))),
         print
     else:
-        highlighted = [0.0 for i in xrange(len(colors))]
+        highlighted = []
     
     listener = audio.Listener(window_size=4096*4, interval=1024,
         filters=filters)
