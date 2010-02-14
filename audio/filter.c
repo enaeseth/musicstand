@@ -54,8 +54,10 @@ FilterChain* FilterChain_Prepare(PyObject* filters)
             
             chain->filters[i++] = (FilterObject*) item;
         }
+        
+        if (chain != NULL)
+            chain->length = length;
     }
-    chain->length = length;
     
     Py_DECREF(iterator);
     
