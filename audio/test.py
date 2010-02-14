@@ -51,7 +51,7 @@ if __name__ == '__main__':
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(15.0),
-        audio.DecibelFilter(),
+        # audio.DecibelFilter(),
         SmoothFilter(2, 4)
     ]
     
@@ -85,17 +85,19 @@ if __name__ == '__main__':
     else:
         highlighted = []
     
-    listener = audio.Listener(window_size=4096*4, interval=1024,
+    listener = audio.Listener(window_size=4096, interval=1024,
         filters=filters)
     
     queue = listener.start()
+    series = dict((Note.from_frequency(f), []) for f in highlighted)
+    plotted_notes = set(series.keys())
     while True:
         try:
             offset, buckets, data = queue.pop()
             good = 0
             notes = []
             for freq, intensity in buckets:
-                notes.append((freq, unparse_note(*freq_to_note(freq)), intensity))
+                notes.append((freq, Note.from_frequency(freq), intensity))
                 # if freq == 0.0:
                 #     continue
                 # good += 1
@@ -105,11 +107,18 @@ if __name__ == '__main__':
             
             notes.sort(key=lambda p: p[2], reverse=True)
             if len(notes) > 0:
+                found = set()
                 for freq, note, power in notes:
+                    try:
+                        series[note].append(power)
+                        found.add(note)
+                    except KeyError:
+                        pass
+                    
                     text = '%3s: %6.02f ' % (note, power)
                     
                     for color_name, h_freq in zip(colors, highlighted):
-                        if abs(h_freq - freq) < 3.0:
+                        if abs(h_freq - freq) < 4.0:
                             text = color(color_name, text)
                             break
                     else:
@@ -117,10 +126,27 @@ if __name__ == '__main__':
                     
                     print text,
                 print
+                
+                for unfound in (plotted_notes - found):
+                    series[unfound].append(0.0)
             
             if good > 0:
                 print
         except KeyboardInterrupt:
             print
             listener.stop()
+            
+            if plotted_notes:
+                mathematica_colors = ['Cyan', 'Green',
+                    'RGBColor[0.8, 0.8, 0.1]', 'Red', 'Magenta',
+                    'Black'][:len(series)]
+                plots = []
+                for freq in highlighted:
+                    note = Note.from_frequency(freq)
+                    plots.append('{%s}' %
+                        ', '.join('%.02f' % power for power in series[note]))
+                print 'ListLinePlot[{%s}, PlotStyle -> {%s}]' % \
+                    (',\n    '.join(plots),
+                    ', '.join('{%s, Thick}' % c for c in mathematica_colors))
+            
             break
