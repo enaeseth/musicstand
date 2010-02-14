@@ -29,23 +29,41 @@ class Note(tuple):
     def __str__(self):
         return unparse_note(*self)
     
-    def __cmp__(self, other):
-        try:
-            if len(other) != 3:
-                return NotImplemented
-        except TypeError:
-            return NotImplemented
-        
-        for i in xrange(3):
-            result = cmp(self[i], other[i])
-            if result != 0:
-                return result
-        
-        return 0
+    def _check(self, other):
+        if not isinstance(other, tuple) or len(other) != 3:
+            raise TypeError('%r is not a note' % other)
+    
+    def __eq__(self, other):
+        self._check(other)
+        return self.semitone == note_to_semitone(*other)
+    
+    def __ne__(self, other):
+        self._check(other)
+        return self.semitone != note_to_semitone(*other)
+    
+    def __lt__(self, other):
+        self._check(other)
+        return self.semitone < note_to_semitone(*other)
+    
+    def __le__(self, other):
+        self._check(other)
+        return self.semitone <= note_to_semitone(*other)
+    
+    def __gt__(self, other):
+        self._check(other)
+        return self.semitone > note_to_semitone(*other)
+    
+    def __ge__(self, other):
+        self._check(other)
+        return self.semitone >= note_to_semitone(*other)
     
     @property
     def frequency(self):
         return note_to_freq(*self)
+    
+    @property
+    def semitone(self):
+        return note_to_semitone(*self)
     
     @classmethod
     def parse(cls, text):
