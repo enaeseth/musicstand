@@ -16,7 +16,8 @@ import sys
 import os
 
 class ProfileTool(object):
-    CUTOFFS = (0.6, 0.25)
+    # CUTOFFS = (0.6, 0.25)
+    CUTOFFS = (0.0,)
     
     def __init__(self, listener):
         self.capturer = Capturer(listener)
@@ -277,16 +278,8 @@ if __name__ == '__main__':
     
     options, args = parser.parse_args()
     
-    filters = [
-        audio.CutoffFilter(4200.0),
-        audio.NegativeFilter(),
-        audio.CoalesceFilter(),
-        MinimumIntensityFilter(20.0),
-        SmoothFilter(4, 3)
-    ]
-    
     listener = audio.Listener(window_size=options.window_size,
-        interval=options.interval, filters=filters)
+        interval=options.interval, filters=get_standard_filters())
     
     profiler = ProfileTool(listener)
     print 'Welcome to the Piano Hero instrument profiler.'
