@@ -225,8 +225,8 @@ def read_profile(stream):
         if not match:
             raise ProfileReadError('invalid mapping line %r' % line)
         
-        note = parse_note(match.group(1))
-        components = set(parse_note(n)
+        note = Note.parse(match.group(1))
+        components = set(Note.parse(n)
             for n in re.split(r',\s*', match.group(2)))
         profile.add(note, components)
     
