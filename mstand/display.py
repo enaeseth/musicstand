@@ -14,6 +14,7 @@ import Image, ImageTk
 import psprocess
 from Queue import Queue, Empty as QueueEmpty
 from songs import *
+from lilypondcreator import *
 
 class Display(object):
     def __init__(self, parent, song_loaded, DEBUG=False):
@@ -116,9 +117,16 @@ class Display(object):
             add_song(song_name)
             self.load_music(song_name)
             
+        def make_lilypond():
+        	MakeLilyPond(self.parent)
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
+        
+        
+        create_button = Button(container, command = make_lilypond,text="Make",\
+        	font = ("Trebuchet MS", 10))
+        
         
         container.grid()
         welcome.grid(columnspan=2)
@@ -129,6 +137,7 @@ class Display(object):
         lilypond_file.grid(row=3, column=1, sticky=S)
         lilypond_entry.grid(row=4, column=1, sticky=N)
         load_button.grid(row=5, column=1, sticky=N)
+        create_button.grid(row=6,column=1,sticky=N)
         
         return container
 

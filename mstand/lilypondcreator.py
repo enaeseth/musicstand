@@ -172,6 +172,9 @@ class MakeLilyPond:
 		self.last_note = 'C'
 		self.last_duration = 0
 		
+		
+		# ADD THE NEW FILE TO THE CONFIG AND MAKE IT PLAYABLE/SELECTABLE
+		
 	
 	def delete_note(self):
 		'''Deletes the most recently added note. If no notes left, does nothing.'''

@@ -4,10 +4,11 @@ import re
 import time
 import Image, ImageTk
 
+
 class MakeLilyPond:
 	def __init__(self, parent):
 		self.title = None
-		self.lilypond_text = []
+		self.lilypond_text = None
 		self.notes_to_add = []
 		
 		# Entered notes use info from previous notes - keep track of those here
@@ -89,7 +90,7 @@ class MakeLilyPond:
 		self.output_frame.grid(column=10,row=5)
 		
 		self.note_output = StringVar()
-		self.note_output.set("Notes played so far!")
+		self.note_output.set("Notes played so far: ")
 		
 		self.notes_entered = Label(self.output_frame,textvariable=self.note_output)
 		self.notes_entered.grid()
@@ -116,6 +117,7 @@ class MakeLilyPond:
 		
 		
 	def initialize_lilypond_string(self):
+		self.lilypond_text = []
 		self.lilypond_text.append("\\header { \n")
 		self.lilypond_text.append("title=\"Untitled\" \n")
 		self.lilypond_text.append("}\n") # close \header
@@ -162,6 +164,10 @@ class MakeLilyPond:
 		
 		# NEED TO IMPORT SOME STUFF?
 		#create_lilypond_files(file_name,folder_name)
+		
+		# Clear everything out
+		self.initialize_lilypond_string()
+		
 	
 	def delete_note(self):
 		'''Deletes the most recently added note. If no notes left, does nothing.'''
@@ -175,11 +181,13 @@ class MakeLilyPond:
 		new_note = ""
 		
 		# If no note name entered, don't add anything
-		new_note_name = self.note_name_entry.get()
+		new_note_name = self.note_name_entry.get().lower()
 		if new_note_name == "":
 			return
+		elif new_note_name not in ['a','b','c','d','e','f','g']:
+			return
 		else:
-			new_note += new_note_name.lower()
+			new_note += new_note_name
 			
 		# Make correct sharp/flat
 		cur_sharp = self.sharp.get()
@@ -209,11 +217,13 @@ class MakeLilyPond:
 		
 		# Update Label's text value i.e. self.note_output.set("TEXT")
 		msg = self.note_output.get()
-		msg += new_note
-		self.note_output.set(msg)
+		main_msg = re.split(":",msg)[0]
+		main_msg = main_msg + ": " + self.notes_to_add[-1]
+		self.note_output.set(main_msg)
 		
-		# Reset variables
 	
+		
+
 		
 
 class PageDisplay:
