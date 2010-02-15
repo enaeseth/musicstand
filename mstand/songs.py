@@ -45,6 +45,31 @@ def add_song(title):
     with open(get_config_path(), 'wt') as f:
         print >>f, title
 
+def add_midi_line(file_path):
+    '''This thing makes a balls-ton of assumptions. Most of them are legit, though.
+    For instance, it assumes there will be a score block. It also assumes there will
+    be no more blocks that end after the score block. Also also, it assumes that
+    if there is already a midi block, there is also a layout block; that is, the
+    person writing the lilypond file didn't royally f*ck it up. Um, what does this
+    actually do? Makes sure the lilypond file is set up to generate a midi. That's
+    all.
+    '''
+    ly_file = open(file_path, 'r+')
+    if '\midi' in ly_file.read():
+        return 1
+    else:
+        ly_file.seek(0)
+        for ix in xrange(len(ly_file.read())):
+            ly_file.seek(-ix,2)
+            if ly_file.read(1) == '}':
+                end_of_file = ly_file.read()
+                ly_file.seek(-ix-1, 2)
+                ly_file.write("\midi { } \n \layout { } \n }")
+                ly_file.write(end_of_file)
+                ly_file.close()
+                return 1
+
+
 def create_lilypond_files(file_path, song_name):
     '''Given a path to a lilypond file and the desired name of the song, creates
     a directory for that song in our Songs folder, copies the lilypond file to
@@ -68,6 +93,10 @@ def create_lilypond_files(file_path, song_name):
     # OPEN THE LILYPOND FILE AND LOOK THROUGH IT TO MAKE SURE IT HAS 
     # \midi AND \layout. IF IT DOES, FINE. IF IT DOESN'T, ADD THEM
     # AND OVERWRITE THE FILE
+    # Edit: This thing exists now. I hope it works and doesn't break like
+    # everything else I touch. If it doesn't, at least you can just
+    # comment out this line and everything will be okay.
+    add_midi_line(new_path)
     
     # Run lilypond script
     subprocess.check_call([lilypond_path, new_path])
