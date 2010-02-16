@@ -27,16 +27,16 @@ class Component(object):
     A frequency component that is being tracked.
     """
     
-    def __init__(self, note, intensity, state=HEARD):
+    def __init__(self, note, intensity, state=HEARD, history=4):
         self.note = note
         self.state = state
         self.previous_state = None
-        self.intensity = intensity
-        self.previous_intensity = None
+        self.intensities = [intensity]
         self.peak = None
         self.last_peak = None
         self.peaked = False
         self.faded_count = 0
+        self._history = 4
     
     def update(self, intensity):
         """
@@ -44,7 +44,7 @@ class Component(object):
         """
         
         self.previous_state = self.state
-        self.previous_intensity = self.intensity
+        previous_intensity = self.intensity
         self.peaked = False
         
         if self.peak:
@@ -56,16 +56,29 @@ class Component(object):
             self.faded_count += 1
         elif intensity < self.intensity:
             if self.state is RISING or self.state is HEARD:
-                if self.peak is None or self.previous_intensity > self.peak * 1.2:
+                if self.peak is None or previous_intensity > self.peak * 1.2:
                     self.last_peak = self.peak
-                    self.peak = self.previous_intensity
+                    self.peak = previous_intensity
                     self.peaked = True
             self.state = FADING
         elif intensity > self.intensity:
             self.state = RISING
             self.faded_count = 0
         
-        self.intensity = intensity
+        self.intensities.append(intensity)
+        while len(self.intensities) > self._history:
+            self.intensities.pop(0)
+    
+    @property
+    def intensity(self):
+        return self.intensities[-1]
+    
+    @property
+    def previous_intensity(self):
+        try:
+            return self.intensities[-2]
+        except IndexError:
+            return None
     
     @property
     def zombie(self):
