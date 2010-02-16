@@ -10,7 +10,7 @@ files = [os.path.join(audio_dir, filename) for filename in files]
 
 setup(name="audio", version="1.0",
       ext_modules=[Extension("audio", files,
-        extra_compile_args=['-std=gnu99', '-Wall', '-fno-inline'],
+        extra_compile_args=['-std=gnu99', '-Wall'],
         # define_macros=[('DEBUG', None)],
         # define_macros=[('DEBUG', None), ('Py_DEBUG', None)],
         include_dirs=['/usr/local/include', '/opt/local/include'],
