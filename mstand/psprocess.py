@@ -163,4 +163,6 @@ def barlines_to_measures(bar_lines):
     return measures
 
 if __name__ == '__main__':
-    parse_postscript("march.ps")
+    x, y = parse_postscript("march.ps")
+    for item in x:
+    	print item
