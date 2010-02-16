@@ -46,13 +46,21 @@ def parse_postscript(filename):
                     
                 location = (pos_x, pos_y, current_line)
                 
-                # Have just started a new line - add this location to temp list
+                # Special case for first line on first page - it starts slightly
+                # indented, so have to compensate for that
                 if len(temp_bar_lines) == 0 and page == 0:
                     first_bar = (first_line_start,location[1], current_line)
                     temp_bar_lines.append(first_bar)
                     temp_bar_lines.append(location)
+                   
+                # Case where we've just started a new line
+                elif len(temp_bar_lines) == 0:
+                    first_bar = (other_lines_start,location[1], current_line)
+                    temp_bar_lines.append(first_bar)
+                    temp_bar_lines.append(location)
+                
 
-                # Already on a line - if this bar is on the same line, add it to
+                # We were already on a line - if this bar is on the same line, add it to
                 # the list. If it's on a new line, sort the old line, add it to
                 # the overall list, blank the list, and start over
                 else:
@@ -79,7 +87,7 @@ def parse_postscript(filename):
 
         # Check if there is a page break
         elif "%%Page:" in lines[i]:
-        	page += 1
+            page += 1
             temp_bar_lines.sort()
             for item in temp_bar_lines:
                 all_bar_lines.append(item)
@@ -133,7 +141,7 @@ def convert_units(all_bar_lines, PAGE_HEIGHT, PAGE_WIDTH, STAFF_HEIGHT):
                 line_position = (posy_percent, posy_percent + STAFF_HEIGHT/PAGE_HEIGHT)
                 temp_line_positions.append(line_position)
                 top_of_line = posy_percent
-			
+            
     # If any of the PS variables are still zero, we have a problem. Exit.
     except ZeroDivisionError, e:
         sys.exit(1)
