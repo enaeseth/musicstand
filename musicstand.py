@@ -52,9 +52,13 @@ def run(algorithm, listener, interpreter, debug=False):
             
             if matcher[0]:
                 matcher[0].add(frequencies)
+        
+        if matcher[0] is not None:
+            matcher[0].shutdown()
     
     queue = listener.start()
-    Thread(target=get_from_listener, name='Listenerer').start()
+    capture_thread = Thread(target=get_from_listener, name='Listenerer')
+    capture_thread.start()
     
     def song_loaded(display):
         print "Song loaded: %s" % display.lilypond_file
@@ -70,7 +74,11 @@ def run(algorithm, listener, interpreter, debug=False):
         display = Display(root, song_loaded, DEBUG=debug)
         root.mainloop()
     except KeyboardInterrupt:
+        print
+    finally:
         running[0] = False
+        capture_thread.join()
+        listener.stop()
 
 def main(algorithm, window_size, interval, interpreter, debug=False):
     filters = [
