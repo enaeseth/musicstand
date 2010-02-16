@@ -29,7 +29,7 @@ def parse_postscript(filename):
     
     # Find bar lines
     temp_bar_lines = []
-    page = 0
+    page = -1
     current_line = 0
     for i in range(len(lines)):
         if "draw_round_box" in lines[i]:
@@ -47,7 +47,7 @@ def parse_postscript(filename):
                 location = (pos_x, pos_y, current_line)
                 
                 # Have just started a new line - add this location to temp list
-                if len(temp_bar_lines) == 0:
+                if len(temp_bar_lines) == 0 and page == 0:
                     first_bar = (first_line_start,location[1], current_line)
                     temp_bar_lines.append(first_bar)
                     temp_bar_lines.append(location)
@@ -79,6 +79,7 @@ def parse_postscript(filename):
 
         # Check if there is a page break
         elif "%%Page:" in lines[i]:
+        	page += 1
             temp_bar_lines.sort()
             for item in temp_bar_lines:
                 all_bar_lines.append(item)

@@ -91,7 +91,7 @@ class MakeLilyPond:
 		self.output_frame.grid(column=10,row=5)
 		
 		self.note_output = StringVar()
-		self.note_output.set("Notes played so far: ")
+		self.note_output.set("Last note added: ")
 		
 		self.notes_entered = Label(self.output_frame,textvariable=self.note_output)
 		self.notes_entered.grid()
@@ -119,9 +119,9 @@ class MakeLilyPond:
 		
 	def initialize_lilypond_string(self):
 		self.lilypond_text = []
-		self.lilypond_text.append("\\header { \n")
-		self.lilypond_text.append("title=\"Untitled\" \n")
-		self.lilypond_text.append("}\n") # close \header
+		#self.lilypond_text.append("\\header { \n")
+		#self.lilypond_text.append("title=\"Untitled\" \n")
+		#self.lilypond_text.append("}\n") # close \header
 		self.lilypond_text.append("\\score { \n")
 		self.lilypond_text.append("\\relative c' { \n")
 		self.lilypond_text.append("\\time 4/4 \n")
@@ -139,14 +139,14 @@ class MakeLilyPond:
 	
 		# Put the notes in the array of lilypond text
 		for note in self.notes_to_add:
-			self.lilypond_text[6] += note
-			self.lilypond_text[6] += " "
+			self.lilypond_text[3] += note
+			self.lilypond_text[3] += " "
 		
 		# Get the rest of the song info
 		self.title = self.title_entry.get()
 		
 		if not self.title == "":
-			self.lilypond_text[1] = "title=\"%s\" \n" % self.title
+			#self.lilypond_text[1] = "title=\"%s\" \n" % self.title
 			folder_name = ''
 			for word in self.title.lower().split():
 				folder_name += word 
@@ -180,7 +180,6 @@ class MakeLilyPond:
 		'''Deletes the most recently added note. If no notes left, does nothing.'''
 		try:
 			del self.notes_to_add[len(self.notes_to_add)-1]
-			print self.notes_to_add
 		except IndexError:
 			pass
 		
@@ -219,9 +218,7 @@ class MakeLilyPond:
 		
 		# Add the new note to the array
 		self.notes_to_add.append(new_note)		
-		
-		print self.notes_to_add
-		
+				
 		# Update Label's text value i.e. self.note_output.set("TEXT")
 		msg = self.note_output.get()
 		main_msg = re.split(":",msg)[0]
