@@ -50,13 +50,13 @@ if __name__ == '__main__':
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(15.0),
+        MinimumIntensityFilter(5.0),
         # audio.DecibelFilter(),
-        SmoothFilter(2, 4)
+        # SmoothFilter(1, 4)
     ]
     
     notes = [note_to_freq(*parse_note(arg.upper())) for arg in sys.argv[1:]]
-    colors = ['cyan!', 'green!', 'yellow!', 'red!', 'purple!', 'white!']
+    colors = ['cyan!', 'green!', 'yellow!', 'red!', 'purple!', 'black!']
     if len(notes) == 1:
         print "Overtone highlighting:",
         
@@ -122,7 +122,7 @@ if __name__ == '__main__':
                             text = color(color_name, text)
                             break
                     else:
-                        text = color('black!', text)
+                        text = color('black', text)
                     
                     print text,
                 print
@@ -145,8 +145,9 @@ if __name__ == '__main__':
                     note = Note.from_frequency(freq)
                     plots.append('{%s}' %
                         ', '.join('%.02f' % power for power in series[note]))
-                print 'ListLinePlot[{%s}, PlotStyle -> {%s}]' % \
+                print 'ListLinePlot[{%s}, PlotStyle -> {%s}, ' \
+                    'PlotRange -> All, PlotMarkers -> Automatic]' % \
                     (',\n    '.join(plots),
-                    ', '.join('{%s, Thick}' % c for c in mathematica_colors))
+                    ', '.join('%s' % c for c in mathematica_colors))
             
             break
