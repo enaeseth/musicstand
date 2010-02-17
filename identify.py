@@ -22,44 +22,52 @@ RISING = intern('rising')  # a component whose intensity is rising
 FADING = intern('fading')  # a component whose intensity is falling
 FADED  = intern('faded')   # a component that is no longer being heard
 
+# Before declaring a rising->fading transition a peak, a component must go
+# `PEAK_EVIDENCE` FFT runs without reaching an intensity greater than that of
+# the sample before the transition.
+PEAK_EVIDENCE = 4
+
 class Component(object):
     """
     A frequency component that is being tracked.
     """
     
-    def __init__(self, note, intensity, state=HEARD, history=4):
+    def __init__(self, note, intensity, state=HEARD, history=6):
         self.note = note
         self.state = state
         self.previous_state = None
         self.intensities = [intensity]
+        self.possible_peak = None
         self.peak = None
         self.last_peak = None
         self.peaked = False
         self.faded_count = 0
-        self._history = 4
+        self._history = history
+        self.counter = 0
+        
+        assert history >= PEAK_EVIDENCE
     
     def update(self, intensity):
         """
         Updates this component with a new intensity.
         """
         
+        self.counter += 1
         self.previous_state = self.state
         previous_intensity = self.intensity
         self.peaked = False
         
-        if self.peak:
-            if intensity / self.peak <= 0.35:
-                self.peak = None
+        # if self.peak:
+        #     if intensity / self.peak[1] <= 0.35:
+        #         self.peak = None
         
         if intensity == 0.0:
             self.state = FADED
             self.faded_count += 1
         elif intensity < self.intensity:
-            if self.state is RISING or self.state is HEARD:
-                if self.peak is None or previous_intensity > self.peak * 1.2:
-                    self.last_peak = self.peak
-                    self.peak = previous_intensity
-                    self.peaked = True
+            if self.state is RISING:
+                if self.peak is None or previous_intensity > self.peak[1] * 1.2:
+                    self._mark_possible_peak(previous_intensity)
             self.state = FADING
         elif intensity > self.intensity:
             self.state = RISING
@@ -68,6 +76,27 @@ class Component(object):
         self.intensities.append(intensity)
         while len(self.intensities) > self._history:
             self.intensities.pop(0)
+        
+        if self.possible_peak:
+            if self.counter >= self.possible_peak[0] + PEAK_EVIDENCE:
+                self._check_peak()
+    
+    def _mark_possible_peak(self, intensity):
+        if self.possible_peak:
+            count, peak_intensity = self.possible_peak
+            if intensity <= peak_intensity:
+                return
+        
+        self.possible_peak = (self.counter, intensity)
+    
+    def _check_peak(self):
+        intensities = self.intensities[-PEAK_EVIDENCE:]
+        if max(intensities) <= self.possible_peak[1]:
+            self.last_peak = self.peak
+            self.peak, self.possible_peak = self.possible_peak, None
+            self.peaked = True
+        else:
+            self.possible_peak = None
     
     @property
     def intensity(self):
@@ -169,9 +198,9 @@ class Detector(object):
         for component in components:
             if component.peaked and component.note in self._watched:
                 top_intensity = max(c.previous_intensity for c in components)
-                if component.peak / top_intensity >= 0.75:
+                if component.peak[1] / top_intensity >= 0.75:
                     print color('purple!', '%3d: %s peaked at %.1f',
-                        self._counter, component.note, component.peak)
+                        component.peak[0], component.note, component.peak[1])
                     supporters = self._get_potential_supporters(component.note,
                         components)
                     print '    ' + ', '.join(str(c.note) for c in supporters)
