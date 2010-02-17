@@ -60,6 +60,11 @@ class Display(object):
         self.welcome_frame = self.init_welcome(self.parent)
         self.parent.after(50, self.check_for_updates)
     
+    def remake_welcome(self):
+    	print "Let's remake things!"
+    	self.welcome_frame.destroy()
+    	self.welcome_frame = self.init_welcome(self.parent)
+    
     def update_position(self, matcher):
         interval = matcher.current_interval
         present_measure = interval.measure if interval is not None else 0

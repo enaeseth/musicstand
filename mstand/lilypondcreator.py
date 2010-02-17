@@ -178,11 +178,12 @@ class MakeLilyPond:
 		# ALTERNATIVELY, SHOULD WE JUST LOAD THE SONG UP IMMEDIATELY?
 		add_song(self.title)
 		
+		
 	
 	def delete_note(self):
 		'''Deletes the most recently added note. If no notes left, does nothing.'''
 		try:
-			del self.notes_to_add[len(self.notes_to_add)-1]
+			del self.notes_to_add[-1]
 		except IndexError:
 			pass
 		
