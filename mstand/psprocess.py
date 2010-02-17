@@ -31,6 +31,7 @@ def parse_postscript(filename):
     temp_bar_lines = []
     page = -1
     current_line = 0
+    num_bars = 0
     for i in range(len(lines)):
         if "draw_round_box" in lines[i]:
             split_line = re.split("\s",lines[i])
@@ -70,6 +71,8 @@ def parse_postscript(filename):
                         temp_bar_lines.sort()
                         for item in temp_bar_lines:
                             all_bar_lines.append(item)
+                        num_bars += (len(temp_bar_lines) - 1)
+                        print len(temp_bar_lines),num_bars
                         temp_bar_lines = []
                         current_line += 1
                         location = (location[0],location[1],current_line)
@@ -87,22 +90,26 @@ def parse_postscript(filename):
 
         # Check if there is a page break
         elif "%%Page:" in lines[i]:
-            page += 1
-            temp_bar_lines.sort()
-            for item in temp_bar_lines:
-                all_bar_lines.append(item)
+        
+        	# Only do this for pages after the first
+            if page > -1:
+                temp_bar_lines.sort()
+                for item in temp_bar_lines:
+                    all_bar_lines.append(item)
+                num_bars += (len(temp_bar_lines)-1)    
                 temp_bar_lines = []
-            if len(all_bar_lines) == 0:
-                page_breaks.append(0)    
-            else:
-                page_breaks.append(len(all_bar_lines)+1)
+    
+                page_breaks.append(num_bars)
                 current_line += 1
+                
+            page += 1
            
 
     # Grab the rest of the things in temp_bar_lines
     temp_bar_lines.sort()
     for item in temp_bar_lines:
         all_bar_lines.append(item)
+    num_bars += (len(temp_bar_lines)-1)
 
     # Convert from PostScript units to percentage-of-page
     converted_bar_lines,bar_line_positions = \
@@ -114,6 +121,8 @@ def parse_postscript(filename):
     postscript_info.append(bar_line_positions)
 
     measures = barlines_to_measures(converted_bar_lines)
+    
+    print page_breaks
     
     return measures, postscript_info
 
@@ -164,5 +173,3 @@ def barlines_to_measures(bar_lines):
 
 if __name__ == '__main__':
     x, y = parse_postscript("march.ps")
-    for item in x:
-    	print item
