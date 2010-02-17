@@ -20,7 +20,7 @@ class MakeLilyPond:
 		
 		self.lilypond_window = Toplevel(parent)
 		self.lilypond_window.title("LilyPond Music Creator")
-		self.lilypond_window.geometry('800x400+700+100')
+		self.lilypond_window.geometry('750x300+700+100')
 				
 		self.top_frame = Frame(self.lilypond_window)
 		self.top_frame.grid()
@@ -33,21 +33,25 @@ class MakeLilyPond:
 		self.note_buttons_frame.grid(column=0,row=5)
 		
 		self.delete_note_button = Button(self.note_buttons_frame, \
-			command = self.delete_note,text="Delete last note")
+			command = self.delete_note,text="Delete last note", \
+                        font = ("Trebuchet MS", 14))
 		self.delete_note_button.grid(row=21)
 		
 		self.add_time_button = Button(self.note_buttons_frame, \
-			command = self.add_note, text = "Add note")
+			command = self.add_note, text = "Add note", \
+                        font = ("Trebuchet MS", 14))
 		self.add_time_button.grid(row=20)
 		
 		# Entry boxes for note name, octave (?)
-		self.note_name_label = Label(self.note_buttons_frame,text="Note name:")
+		self.note_name_label = Label(self.note_buttons_frame,text="Note name:", \
+                        font = ("Trebuchet MS", 14))
 		self.note_name_label.grid(row=7,column=0)
 
 		self.note_name_entry = Entry(self.note_buttons_frame,width=2)
 		self.note_name_entry.grid(row=7,column=1)
 		
-		self.note_octave_label = Label(self.note_buttons_frame,text="Octave:")
+		self.note_octave_label = Label(self.note_buttons_frame,text="Octave:", \
+                        font = ("Trebuchet MS", 14))
 		self.note_octave_label.grid(row=8,column=0)
 		
 		self.note_octave_entry = Entry(self.note_buttons_frame,width=2)
@@ -75,11 +79,13 @@ class MakeLilyPond:
 		self.main_buttons_frame.grid(column=5,row=10)
 		
 		self.quit_button = Button(self.main_buttons_frame, \
-			command = self.quit,text="Quit")
+			command = self.quit,text="Quit", \
+                        font = ("Trebuchet MS", 14))
 		self.quit_button.grid(column=1,row=0)
 		
 		self.add_create_button = Button(self.main_buttons_frame, \
-			command = self.write_to_file, text="Create!")
+			command = self.write_to_file, text="Create!", \
+                        font = ("Trebuchet MS", 14))
 		self.add_create_button.grid(column=0,row=0)
 		
 		
@@ -90,10 +96,15 @@ class MakeLilyPond:
 		self.output_frame.grid(column=10,row=5)
 		
 		self.note_output = StringVar()
-		self.note_output.set("Notes played so far: ")
+		self.note_output.set("")
 		
-		self.notes_entered = Label(self.output_frame,textvariable=self.note_output)
-		self.notes_entered.grid()
+		self.notes_entered_1 = Label(self.output_frame,text="Last note added:", \
+                        font = ("Trebuchet MS", 14))
+		self.notes_entered_1.grid(column=1,row=0)
+
+		self.notes_entered_2 = Label(self.output_frame,textvariable=self.note_output, \
+                        font = ("Trebuchet MS",18))
+		self.notes_entered_2.grid(column=1,row=10)
 		
 		
 		#############################################
@@ -102,13 +113,15 @@ class MakeLilyPond:
 		self.song_info_frame = Frame(self.top_frame)
 		self.song_info_frame.grid(column=5,row=0)
 		
-		self.title_label = Label(self.song_info_frame,text="Song name:")
+		self.title_label = Label(self.song_info_frame,text="Song name:", \
+                        font = ("Trebuchet MS", 14))
 		self.title_label.grid(column=0,row=0)
 		
 		self.title_entry = Entry(self.song_info_frame)
 		self.title_entry.grid(column=1,row=0)
 		
-		self.time_sig_label = Label(self.song_info_frame,text="Time signature:")
+		self.time_sig_label = Label(self.song_info_frame,text="Time signature:", \
+                        font = ("Trebuchet MS", 14))
 		self.time_sig_label.grid(column=2,row=0)
 		
 		self.time_sig_entry = Entry(self.song_info_frame,width=5)
@@ -118,9 +131,9 @@ class MakeLilyPond:
 		
 	def initialize_lilypond_string(self):
 		self.lilypond_text = []
-		self.lilypond_text.append("\\header { \n")
-		self.lilypond_text.append("title=\"Untitled\" \n")
-		self.lilypond_text.append("}\n") # close \header
+		#self.lilypond_text.append("\\header { \n")
+		#self.lilypond_text.append("title=\"Untitled\" \n")
+		#self.lilypond_text.append("}\n") # close \header
 		self.lilypond_text.append("\\score { \n")
 		self.lilypond_text.append("\\relative c' { \n")
 		self.lilypond_text.append("\\time 4/4 \n")
@@ -138,14 +151,14 @@ class MakeLilyPond:
 	
 		# Put the notes in the array of lilypond text
 		for note in self.notes_to_add:
-			self.lilypond_text[6] += note
-			self.lilypond_text[6] += " "
+			self.lilypond_text[3] += note
+			self.lilypond_text[3] += " "
 		
 		# Get the rest of the song info
 		self.title = self.title_entry.get()
 		
 		if not self.title == "":
-			self.lilypond_text[1] = "title=\"%s\" \n" % self.title
+			#self.lilypond_text[1] = "title=\"%s\" \n" % self.title
 			folder_name = ''
 			for word in self.title.lower().split():
 				folder_name += word 
@@ -162,18 +175,27 @@ class MakeLilyPond:
 			outfile.write(item)
 		outfile.close()
 		
-		# NEED TO IMPORT SOME STUFF?
-		#create_lilypond_files(file_name,folder_name)
+		# Make the file!
+		create_lilypond_files(file_name,folder_name)
 		
 		# Clear everything out
 		self.initialize_lilypond_string()
+		self.last_octave = 4
+		self.last_note = 'C'
+		self.last_duration = 0
+		
+		
+		# ADD THE NEW FILE TO THE CONFIG AND MAKE IT PLAYABLE/SELECTABLE
+		# THE LIST DOESN'T UPDATE - CAN WE CHANGE THAT?
+		# ALTERNATIVELY, SHOULD WE JUST LOAD THE SONG UP IMMEDIATELY?
+		add_song(self.title)
+		
 		
 	
 	def delete_note(self):
 		'''Deletes the most recently added note. If no notes left, does nothing.'''
 		try:
-			del self.notes_to_add[len(self.notes_to_add)-1]
-			print self.notes_to_add
+			del self.notes_to_add[-1]
 		except IndexError:
 			pass
 		
@@ -212,19 +234,9 @@ class MakeLilyPond:
 		
 		# Add the new note to the array
 		self.notes_to_add.append(new_note)		
-		
-		print self.notes_to_add
-		
+				
 		# Update Label's text value i.e. self.note_output.set("TEXT")
-		msg = self.note_output.get()
-		main_msg = re.split(":",msg)[0]
-		main_msg = main_msg + ": " + self.notes_to_add[-1]
-		self.note_output.set(main_msg)
-		
-	
-		
-
-		
+		self.note_output.set(self.notes_to_add[-1])		
 
 class PageDisplay:
     def __init__(self, parent, pic_dir):
