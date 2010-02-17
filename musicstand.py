@@ -71,7 +71,7 @@ def run(algorithm, listener, interpreter, debug=False):
     
     try:
         root = Tk()
-        display = Display(root, song_loaded, DEBUG=debug)
+        display = Display(root, song_loaded, DEBUG=debug, )
         root.mainloop()
     except KeyboardInterrupt:
         print

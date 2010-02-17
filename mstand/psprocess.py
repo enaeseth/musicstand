@@ -72,7 +72,7 @@ def parse_postscript(filename):
                         for item in temp_bar_lines:
                             all_bar_lines.append(item)
                         num_bars += (len(temp_bar_lines) - 1)
-                        print len(temp_bar_lines),num_bars
+                        #print len(temp_bar_lines),num_bars
                         temp_bar_lines = []
                         current_line += 1
                         location = (location[0],location[1],current_line)
@@ -122,7 +122,7 @@ def parse_postscript(filename):
 
     measures = barlines_to_measures(converted_bar_lines)
     
-    print page_breaks
+    #print page_breaks
     
     return measures, postscript_info
 
