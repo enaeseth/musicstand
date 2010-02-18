@@ -114,11 +114,16 @@ def run_test(test):
         assert _current_run is None
         
         _current_run = TestRun(test)
+        error = False
         try:
             test()
+        except:
+            error = True
+            raise
         finally:
             _current_run.test_done()
-            _current_run.wait_for_finish()
+            if not error:
+                _current_run.wait_for_finish()
             _current_run = None
 
 class Test(object):
