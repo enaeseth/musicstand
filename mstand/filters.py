@@ -7,16 +7,20 @@ Frequency filters (implemented in Python).
 import operator
 from collections import defaultdict
 
-def get_standard_filters():
+def get_standard_filters(decibels=False):
     import audio
     
-    return [
+    base = [
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(20.0),
-        SmoothFilter(2, 4)
+        MinimumIntensityFilter(20.0)
     ]
+    
+    if decibels:
+        base.append(audio.DecibelFilter())
+    
+    return base + [SmoothFilter(2, 4)]
 
 class MinimumIntensityFilter(object):
     def __init__(self, threshold):
