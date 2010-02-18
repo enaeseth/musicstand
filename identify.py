@@ -40,6 +40,9 @@ class Component(object):
     """
     
     def __init__(self, note, intensity, counter, state=HEARD, history=6):
+        if not isinstance(note, Note):
+            raise TypeError('%r is not a Note' % note)
+        
         self.note = note
         self.state = state
         self.previous_state = None
@@ -195,10 +198,11 @@ class Detector(object):
     """
     
 
-    def __init__(self, callback, profile):
+    def __init__(self, callback, profile, debug=False):
         self._callback = callback
         self._profile = profile
         self._counter = 0
+        self._debug = debug
     
     def _get_potential_supporters(self, target, components):
         frequency = target.frequency
@@ -216,9 +220,6 @@ class Detector(object):
         return potentials
     
     def update(self, components):
-        if self._counter is 0:
-            print 'Ready.'
-        
         components = components.values()
         components.sort(key=lambda component: -component.intensity)
         
@@ -277,12 +278,14 @@ class Detector(object):
             for note, fingerprint in fingerprints), key=lambda (n, d): d)
         
         if best_match[1] <= 200:
-            print 'Peak of %s gave note %s (distance: %.2f)' % \
-                (peaked_component.note, best_match[0], best_match[1])
-            print '    ' + ', '.join('%s: %.2f' % pair for pair in sorted(supporters.iteritems(),
-                key=lambda (n, i): i, reverse=True))
-        
-        # self._callback(*best_match)
+            if self._debug:
+                print 'Peak of %s gave note %s (distance: %.2f)' % \
+                    (peaked_component.note, best_match[0], best_match[1])
+                print '    ' + ', '.join('%s: %.2f' % pair
+                    for pair in sorted(supporters.iteritems(),
+                        key=lambda (n, i): i, reverse=True))
+            
+            self._callback(*best_match)
 
 def create_listener(options):
     filters = [
