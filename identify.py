@@ -247,6 +247,8 @@ class Detector(object):
         
         def get_distance(fingerprint, supporters):
             distance = 0.0
+            if len(fingerprint) == 0:
+                return distance
             for component, intensity in fingerprint.iteritems():
                 actual_intensity = supporters.get(component, 0.0)
                 distance += (100*actual_intensity - 100*intensity) ** 2

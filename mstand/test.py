@@ -9,6 +9,7 @@ from threading import Thread, Lock, Condition
 from warnings import warn
 import cPickle as pickle
 import os.path
+import sys
 import re
 
 from identify import Tracker, Detector
@@ -116,6 +117,7 @@ def run_test(test):
         try:
             test()
         finally:
+            _current_run.test_done()
             _current_run = None
 
 class Test(object):
@@ -178,6 +180,7 @@ class TestRun(object):
         self._ready = Condition()
         self._processed = Condition()
         self._finished = False
+        self._test_done = False
         self._expectations = 0
         
         assert _profile is not None, 'no instrument profile loaded'
@@ -189,6 +192,9 @@ class TestRun(object):
         """
         Called by the test machinery when a note is detected and identified.
         """
+        
+        if self._test_done:
+            return
         
         with self._ready:
             self.detected_notes.append(note)
@@ -210,6 +216,11 @@ class TestRun(object):
         with self._ready:
             self._finished = True
             self._ready.notifyAll()
+    
+    def test_done(self):
+        with self._processed:
+            self._test_done = True
+            self._processed.notifyAll()
     
     def play(self, recording):
         global _player
@@ -236,8 +247,9 @@ class TestRun(object):
             while first_run or not self._finished: # poor man's do...while
                 # find the expected notes (if any) which have now been
                 # detected
-                for expected in expected_notes:
+                for expected in list(expected_notes):
                     for i, detected in enumerate(self.detected_notes):
+                        print i, expected, detected
                         if expected == detected:
                             # whoo! clear the note from the expected set and
                             # the detected list
@@ -255,7 +267,8 @@ class TestRun(object):
                 # wait for more
                 first_run = False
                 self._ready.wait()
-            
+        
+        print self.detected_notes
         if self.detected_notes:
             # there are some notes that we detected but did not expect;
             # warn about these extra notes
@@ -278,6 +291,7 @@ class Player(object):
     def __init__(self):
         self._recording = None
         self._receiver = None
+        self._on_finish = None
         self._available = Condition()
         
         self._thread = Thread(name='Player', target=self._run)
@@ -290,6 +304,12 @@ class Player(object):
         self._thread.start()
     
     def play(self, recording, receiver, finish_callback):
+        from time import sleep
+        
+        i = 0
+        while self._recording is not None and i <= 5:
+            sleep(0.1)
+            i += 1
         assert self._recording is None
         
         with self._available:
@@ -299,14 +319,18 @@ class Player(object):
             self._available.notify()
     
     def _run(self):
+        import traceback
         while True:
             with self._available:
                 while not self._recording:
                     self._available.wait()
             
-            for result in self._recording:
-                self._receiver([(Note.from_frequency(freq), intensity)
-                    for freq, intensity in result])
+            try:
+                for result in self._recording:
+                    self._receiver([(Note.from_frequency(freq), intensity)
+                        for freq, intensity in result])
+            except Exception:
+                traceback.print_exc()
             
             self._on_finish()
             self._recording = None
