@@ -73,6 +73,10 @@ class Note(tuple):
     def from_frequency(cls, freq):
         return cls(*freq_to_note(freq))
     
+    @classmethod
+    def from_semitone(cls, semitone):
+        return cls(*semitone_to_note(semitone))
+    
     def get_harmonics(self, n=3):
         fundamental = self.frequency
         
