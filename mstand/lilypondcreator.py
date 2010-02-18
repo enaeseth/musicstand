@@ -7,10 +7,11 @@ from songs import *
 
 
 class MakeLilyPond:
-	def __init__(self, parent):
+	def __init__(self, parent,window):
 		self.title = None
 		self.lilypond_text = None
 		self.notes_to_add = []
+		self.main_display = window
 		
 		# Entered notes use info from previous notes - keep track of those here
 		self.last_octave = 4
@@ -21,7 +22,7 @@ class MakeLilyPond:
 		
 		self.lilypond_window = Toplevel(parent)
 		self.lilypond_window.title("LilyPond Music Creator")
-		self.lilypond_window.geometry('800x400+700+100')
+		self.lilypond_window.geometry('750x300+700+100')
 				
 		self.top_frame = Frame(self.lilypond_window)
 		self.top_frame.grid()
@@ -33,22 +34,21 @@ class MakeLilyPond:
 		self.note_buttons_frame = Frame(self.top_frame)
 		self.note_buttons_frame.grid(column=0,row=5)
 		
-		self.delete_note_button = Button(self.note_buttons_frame, \
-			command = self.delete_note,text="Delete last note")
-		self.delete_note_button.grid(row=21)
-		
 		self.add_time_button = Button(self.note_buttons_frame, \
-			command = self.add_note, text = "Add note")
+			command = self.add_note, text = "Add note", \
+                        font = ("Trebuchet MS", 14))
 		self.add_time_button.grid(row=20)
 		
 		# Entry boxes for note name, octave (?)
-		self.note_name_label = Label(self.note_buttons_frame,text="Note name:")
+		self.note_name_label = Label(self.note_buttons_frame,text="Note name:", \
+                        font = ("Trebuchet MS", 14))
 		self.note_name_label.grid(row=7,column=0)
 
 		self.note_name_entry = Entry(self.note_buttons_frame,width=2)
 		self.note_name_entry.grid(row=7,column=1)
 		
-		self.note_octave_label = Label(self.note_buttons_frame,text="Octave:")
+		self.note_octave_label = Label(self.note_buttons_frame,text="Octave:", \
+                        font = ("Trebuchet MS", 14))
 		self.note_octave_label.grid(row=8,column=0)
 		
 		self.note_octave_entry = Entry(self.note_buttons_frame,width=2)
@@ -76,44 +76,60 @@ class MakeLilyPond:
 		self.main_buttons_frame.grid(column=5,row=10)
 		
 		self.quit_button = Button(self.main_buttons_frame, \
-			command = self.quit,text="Quit")
-		self.quit_button.grid(column=1,row=0)
+			command = self.quit,text="Quit", \
+                        font = ("Trebuchet MS", 14))
+		self.quit_button.grid(column=1,row=0,padx=5)
 		
 		self.add_create_button = Button(self.main_buttons_frame, \
-			command = self.write_to_file, text="Create!")
-		self.add_create_button.grid(column=0,row=0)
+			command = self.write_to_file, text="Create!", \
+                        font = ("Trebuchet MS", 14))
+		self.add_create_button.grid(column=0,row=0,padx=5)
 		
 		
 		#########################################
 		## This stuff goes in the output frame
 		#########################################
-		self.output_frame = Frame(self.top_frame)
-		self.output_frame.grid(column=10,row=5)
+		self.output_frame = Frame(self.top_frame,height=100,width=500)
+		self.output_frame.grid(column=5,row=5,columnspan=2,sticky=E+W)
+		self.output_frame.grid_propagate(False)
 		
 		self.note_output = StringVar()
-		self.note_output.set("Last note added: ")
+		self.note_output.set("")
 		
-		self.notes_entered = Label(self.output_frame,textvariable=self.note_output)
-		self.notes_entered.grid()
+		self.notes_entered_1 = Label(self.output_frame,text="Last note added:", \
+                        font = ("Trebuchet MS", 14))
+		self.notes_entered_1.grid(column=1,row=0,sticky=W)
+
+		self.notes_entered_2 = Label(self.output_frame,textvariable=self.note_output, \
+                        font = ("Trebuchet MS",18))
+		self.notes_entered_2.grid(column=2,row=0,sticky=E)
+		
+		self.delete_note_button = Button(self.output_frame, \
+			command = self.delete_note,text="Delete last note", \
+                        font = ("Trebuchet MS", 14))
+		self.delete_note_button.grid(column=1,row=21,pady=10)
+		
 		
 		
 		#############################################
-		## This stuff goes in the miscellaneous frame
+		## This stuff goes in the song info frame
 		#############################################
 		self.song_info_frame = Frame(self.top_frame)
 		self.song_info_frame.grid(column=5,row=0)
 		
-		self.title_label = Label(self.song_info_frame,text="Song name:")
-		self.title_label.grid(column=0,row=0)
+		self.title_label = Label(self.song_info_frame,text="Song name:", \
+                        font = ("Trebuchet MS", 14))
+		self.title_label.grid(column=0,row=0,padx=5)
 		
 		self.title_entry = Entry(self.song_info_frame)
-		self.title_entry.grid(column=1,row=0)
+		self.title_entry.grid(column=1,row=0,padx=5)
 		
-		self.time_sig_label = Label(self.song_info_frame,text="Time signature:")
-		self.time_sig_label.grid(column=2,row=0)
+		self.time_sig_label = Label(self.song_info_frame,text="Time signature:", \
+                        font = ("Trebuchet MS", 14))
+		self.time_sig_label.grid(column=2,row=0,padx=5)
 		
 		self.time_sig_entry = Entry(self.song_info_frame,width=5)
-		self.time_sig_entry.grid(column=3,row=0)
+		self.time_sig_entry.grid(column=3,row=0,padx=5)
 		
 		
 		
@@ -134,6 +150,7 @@ class MakeLilyPond:
 
 	def quit(self):
 		self.lilypond_window.destroy()
+		self.main_display.remake_welcome()
 	
 	def write_to_file(self):
 	
@@ -184,6 +201,7 @@ class MakeLilyPond:
 		'''Deletes the most recently added note. If no notes left, does nothing.'''
 		try:
 			del self.notes_to_add[-1]
+			self.update_note_output()
 		except IndexError:
 			pass
 		
@@ -224,7 +242,23 @@ class MakeLilyPond:
 		self.notes_to_add.append(new_note)		
 				
 		# Update Label's text value i.e. self.note_output.set("TEXT")
-		msg = self.note_output.get()
-		main_msg = re.split(":",msg)[0]
-		main_msg = main_msg + ": " + self.notes_to_add[-1]
-		self.note_output.set(main_msg)
+		self.update_note_output()		
+	
+	def update_note_output(self):
+		if len(self.notes_to_add) == 0:
+			self.note_output.set("")
+		else:
+			self.note_output.set(self.interpret_note(self.notes_to_add[-1]))
+	
+	def interpret_note(self,note):
+		
+		mappings = {1:"whole",2:"half",4:"quarter", 8:"eighth", 16:"sixteenth"}
+		
+		note_name = note[0].upper()
+		if "is" in note:
+			note_name += " sharp"
+		elif "es" in note:
+			note_name += " flat"
+		
+		note_name = note_name + "(%s)" % mappings[self.last_duration]
+		return note_name
