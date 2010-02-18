@@ -27,8 +27,7 @@ class Note(object):
         self.octave = 0
 
     def pitch_to_note(self,pitch):
-        pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'],
-                      7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
+        pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'], 7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
         self.octave = ((pitch)/12)-1
         norm_pitch = pitch-(12*(self.octave+1))
         new_pitch = pitch_dict[norm_pitch]
@@ -39,8 +38,7 @@ class Note(object):
         notes_by_start_time[start_time] = [self.measure, self.beat_number, self.duration, [(self.octave, self.pitch, self.accidental)]]
 
 def add_multiple(pitch):
-    pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'],
-                  7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
+    pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'], 7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
     octave = ((pitch)/12)-1
     new_pitch, new_acc = pitch_dict[pitch-(12*(octave+1))][0], pitch_dict[pitch-(12*(octave+1))][1]
     return (octave, new_pitch, new_acc)

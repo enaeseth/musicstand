@@ -20,7 +20,7 @@ try:
 except ImportError:
     import pickle
 
-import audio
+from mstand import audio
 import time
 import math
 from mstand.notes import *

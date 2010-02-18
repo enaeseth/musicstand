@@ -2,6 +2,8 @@
 
 """
 Tell me who you are!
+
+I am the goddamn Batman.
 """
 
 from __future__ import with_statement
@@ -48,6 +50,8 @@ class Component(object):
         self.peaked = False
         self.faded_count = 0
         self._history = history
+        self.notes_since_last_peak = 1
+        self.weak_notes_since_last = 0
         self.counter = counter
         
         assert history >= PEAK_EVIDENCE
@@ -71,7 +75,8 @@ class Component(object):
             self.faded_count += 1
         elif intensity < self.intensity:
             if self.state is RISING:
-                if self.peak is None or previous_intensity > self.peak[1] * 1.2:
+                if (self.peak is None or previous_intensity > self.peak[1] * .95 and float(self.weak_notes_since_last)/self.notes_since_last_peak
+                >= 0.5):
                     self._mark_possible_peak(previous_intensity)
             self.state = FADING
         elif intensity > self.intensity:
@@ -82,10 +87,20 @@ class Component(object):
         while len(self.intensities) > self._history:
             self.intensities.pop(0)
         
+        is_peak = False
+        
         if self.possible_peak:
             if self.counter >= self.possible_peak[0] + PEAK_EVIDENCE:
-                self._check_peak()
-    
+                is_peak = self._check_peak()
+                
+        if is_peak:
+            return
+         
+        self.notes_since_last_peak += 1
+        if self.peak:
+            if intensity <= .5*self.peak[1]:
+                self.weak_notes_since_last += 1
+        
     def _mark_possible_peak(self, intensity):
         if self.possible_peak:
             count, peak_intensity = self.possible_peak
@@ -100,8 +115,12 @@ class Component(object):
             self.last_peak = self.peak
             self.peak, self.possible_peak = self.possible_peak, None
             self.peaked = True
+            self.weak_notes_since_last = 0
+            self.notes_since_last_peak = 1
+            return True
         else:
             self.possible_peak = None
+            return False
     
     @property
     def intensity(self):
@@ -175,6 +194,7 @@ class Detector(object):
     Examines tracked components and decides what notes are being played.
     """
     
+
     def __init__(self, callback, profile):
         self._callback = callback
         self._profile = profile
@@ -228,7 +248,7 @@ class Detector(object):
             distance = 0.0
             for component, intensity in fingerprint.iteritems():
                 actual_intensity = supporters.get(component, 0.0)
-                distance += (actual_intensity - intensity) ** 2
+                distance += (100*actual_intensity - 100*intensity) ** 2
             return distance / len(fingerprint)
         
         peak = peaked_component.peak
@@ -248,10 +268,15 @@ class Detector(object):
             if ratio > 0.08:
                 supporters[component.note] = ratio
         
+        most_badass = max(supporters.itervalues())
+        if most_badass > 1:
+            for note, intensity in supporters.iteritems():
+                supporters[note] /= most_badass
+        
         best_match = min(((note, get_distance(fingerprint, supporters))
             for note, fingerprint in fingerprints), key=lambda (n, d): d)
         
-        if best_match[1] <= 0.2:
+        if best_match[1] <= 200:
             print 'Peak of %s gave note %s (distance: %.2f)' % \
                 (peaked_component.note, best_match[0], best_match[1])
             print '    ' + ', '.join('%s: %.2f' % pair for pair in sorted(supporters.iteritems(),
