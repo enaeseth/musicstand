@@ -222,7 +222,7 @@ def read_profile(stream):
         raise ProfileReadError('invalid header line %r' % header)
     
     version = match.group(1).split('.')
-    if version[0] != '1':
+    if version[0] != '2':
         raise ProfileReadError('incompatible profile version %s' %
             '.'.join(version))
     
@@ -250,7 +250,7 @@ def read_profile(stream):
     return profile
 
 def write_profile(profile, stream):
-    print >>stream, '# Piano Hero Instrument Profile 1.0'
+    print >>stream, '# Piano Hero Instrument Profile 2.0'
     print >>stream, 'name: %s' % profile.name
     print >>stream, ''
     

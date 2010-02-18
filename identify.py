@@ -27,12 +27,16 @@ FADED  = intern('faded')   # a component that is no longer being heard
 # the sample before the transition.
 PEAK_EVIDENCE = 4
 
+# When looking for "supporting" components, average their intensities over
+# the previous `SUPPORTER_HISTORY` runs.
+SUPPORTER_HISTORY = 5
+
 class Component(object):
     """
     A frequency component that is being tracked.
     """
     
-    def __init__(self, note, intensity, state=HEARD, history=6):
+    def __init__(self, note, intensity, counter, state=HEARD, history=6):
         self.note = note
         self.state = state
         self.previous_state = None
@@ -43,7 +47,7 @@ class Component(object):
         self.peaked = False
         self.faded_count = 0
         self._history = history
-        self.counter = 0
+        self.counter = counter
         
         assert history >= PEAK_EVIDENCE
     
@@ -130,6 +134,7 @@ class Tracker(object):
         self._components = {}
         self._active_notes = set()
         self._callback = callback
+        self._counter = 0
     
     def update(self, buckets):
         """
@@ -147,7 +152,7 @@ class Tracker(object):
             if component is not None:
                 component.update(intensity)
             else:
-                component = Component(note, intensity)
+                component = Component(note, intensity, self._counter)
                 self._components[note] = component
         
         for faded_note in (self._active_notes - current_notes):
@@ -161,6 +166,7 @@ class Tracker(object):
         
         self._callback(self._components)
         self._active_notes = current_notes
+        self._counter += 1
     
 
 class Detector(object):
@@ -168,9 +174,29 @@ class Detector(object):
     Examines tracked components and decides what notes are being played.
     """
     
-    def __init__(self, callback=None, watched=None):
+    _profile = {
+        Note.parse('C4'): [
+            (Note.parse('C3'), {Note.parse('C#4'): 0.83, Note.parse('G4'): 0.39, Note.parse('A#3'): 0.38, Note.parse('D4'): 0.29,
+                    Note.parse('E5'): 0.28, Note.parse('C#3'): 0.27, Note.parse('A3'): 0.27})
+        ],
+        Note.parse('D4'): [
+            (Note.parse('D4'), {Note.parse('D5'): 0.95, Note.parse('D#4'): 0.92, Note.parse('C4'): 0.34, Note.parse('E4'): 0.31,
+                    Note.parse('D#5'): 0.30, Note.parse('C#5'): 0.30, Note.parse('C#4'): 0.28})
+        ],
+        Note.parse('A4'): [
+            (Note.parse('D3'), {Note.parse('A#4'): 0.43, Note.parse('G#4'): 0.34, Note.parse('D#3'): 0.27, Note.parse('D4'): 0.27,
+                    Note.parse('D3'): 0.24})
+        ],
+        Note.parse('C5'): [
+            (Note.parse('C4'), {Note.parse('C#4'): 0.61, Note.parse('C4'): 0.44, Note.parse('C#5'): 0.40, Note.parse('B4'): 0.39,
+                    Note.parse('D4'): 0.22, Note.parse('B3'): 0.20, Note.parse('A#4'): 0.19}),
+            (Note.parse('C5'), {Note.parse('C#5'): 0.39, Note.parse('B4'): 0.38, Note.parse('A#4'): 0.17, Note.parse('D5'): 0.15})
+        ],
+    }
+    
+    def __init__(self, callback):
         self._callback = callback
-        self._watched = watched or []
+        
         self._counter = 0
     
     def _get_potential_supporters(self, target, components):
@@ -196,15 +222,61 @@ class Detector(object):
         components.sort(key=lambda component: -component.intensity)
         
         for component in components:
-            if component.peaked and component.note in self._watched:
-                top_intensity = max(c.previous_intensity for c in components)
-                if component.peak[1] / top_intensity >= 0.75:
-                    print color('purple!', '%3d: %s peaked at %.1f',
-                        component.peak[0], component.note, component.peak[1])
-                    supporters = self._get_potential_supporters(component.note,
-                        components)
-                    print '    ' + ', '.join(str(c.note) for c in supporters)
+            if component.peaked:
+                self._analyze_component(component, components)
         self._counter += 1
+    
+    def _analyze_component(self, peaked_component, all_components):
+        try:
+            fingerprints = self._profile[peaked_component.note]
+        except KeyError:
+            return
+            # print 'sorry, got nothing for %s' % str(peaked_component.note)
+        
+        def get_average_intensity(component, index):
+            start = index - 1
+            length = 6
+            
+            intensities = component.intensities[start:start+length]
+            try:
+                return sum(intensities) / len(intensities)
+            except ZeroDivisionError:
+                return 0.0
+        
+        def get_distance(fingerprint, supporters):
+            distance = 0.0
+            for component, intensity in fingerprint.iteritems():
+                actual_intensity = supporters.get(component, 0.0)
+                distance += (actual_intensity - intensity) ** 2
+            return distance / len(fingerprint)
+        
+        peak = peaked_component.peak
+        peak_offset = peaked_component.counter - peak[0]
+        peak_intensity = get_average_intensity(peaked_component, peak_offset)
+        if peak_intensity <= 0.0:
+            return
+        
+        supporters = {}
+        for component in all_components:
+            if component == peaked_component:
+                continue
+            
+            intensity = get_average_intensity(component, peak_offset)
+            ratio = intensity / peak_intensity
+            
+            if ratio > 0.08:
+                supporters[component.note] = ratio
+        
+        best_match = min(((note, get_distance(fingerprint, supporters))
+            for note, fingerprint in fingerprints), key=lambda (n, d): d)
+        
+        if best_match[1] <= 0.2:
+            print 'Peak of %s gave note %s (distance: %.2f)' % \
+                (peaked_component.note, best_match[0], best_match[1])
+            print '    ' + ', '.join('%s: %.2f' % pair for pair in sorted(supporters.iteritems(),
+                key=lambda (n, i): i, reverse=True))
+        
+        # self._callback(*best_match)
 
 def create_listener(options):
     filters = [
@@ -257,8 +329,11 @@ if __name__ == '__main__':
         if len(filter(None, watched_components)) > 0:
             print ' '.join(describe(c) for c in watched_components)
     
+    def print_match(note, distance):
+        print 'Found %s (distance: %.2f)' % (note, distance)
+    
     callback = show_components if options.track else \
-        Detector(watched=watched).update
+        Detector(print_match).update
     tracker = Tracker(callback)
     
     if options.track:

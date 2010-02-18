@@ -20,6 +20,9 @@ class Capturer(object):
     Using a Capturer object handles spawning a thread to read from the
     FFT result queue and handle the resulting buckets.
     """
+    
+    EXCESSIVE_SILENCE = 45
+    
     def __init__(self, listener, handler=None, notes=True,
                  thread_name='Capturer'):
         self._listener = listener
