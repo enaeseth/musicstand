@@ -25,6 +25,14 @@ class Profile(object):
         self.peaks = peaks
         self.path = path
     
+    def save(self, path=None):
+        path = path or self.path
+        if not path:
+            raise ValueError('no path specified and none saved')
+        
+        with open(path, 'wb') as stream:
+            write_profile(self, stream)
+    
     def __repr__(self):
         return '%s(%r, %r, %r)' % (type(self).__name__, self.name, self.peaks,
             self.path)
@@ -79,6 +87,27 @@ def read_profile(stream, path=None):
     
     return Profile(name, peaks, path)
 
+def write_profile(profile, stream):
+    serialized = {
+        'version': '2.0',
+        'name': profile.name,
+        'peaks': {}
+    }
+    
+    for peaking_note, signalled_notes in profile.peaks.iteritems():
+        signalled = []
+        
+        for note, components in signalled_notes:
+            components = dict((str(component), intensity)
+                for component, intensity in components.iteritems())
+            signalled.append((str(note), components))
+        
+        serialized['peaks'][str(peaking_note)] = signalled
+    
+    json.dump(serialized, stream, indent=4)
+
 if __name__ == '__main__':
     import sys
-    print load_profile(sys.argv[1])
+    profile = load_profile(sys.argv[1])
+    
+    write_profile(profile, sys.stdout)
