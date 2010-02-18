@@ -10,11 +10,40 @@ from mstand.profile import load_profile
 from mstand.terminal import color
 from mstand.test import *
 
-from warnings import catch_warnings, simplefilter as filter_warnings
+from warnings import simplefilter as filter_warnings
 from fnmatch import fnmatch
 import traceback
 import sys
 import os
+
+try:
+    from warnings import catch_warnings
+except ImportError:
+    # Python > 2.6
+    from contextlib import contextmanager
+    
+    @contextmanager
+    def catch_warnings(record=False):
+        import warnings
+        
+        class _Warning(object):
+            def __init__(self, message, category, filename, lineno):
+                self.message = message
+                self.category = category
+                self.filename = filename
+                self.lineno = lineno
+                
+        
+        warn_list = []
+        def save_warning(message, category, filename, lineno, *args):
+            warn_list.append(_Warning(message, category, filename, lineno))
+        
+        old = warnings.showwarning
+        try:
+            warnings.showwarning = save_warning
+            yield warn_list
+        finally:
+            warnings.showwarning = old
 
 def load_tests():
     """
