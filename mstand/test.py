@@ -118,6 +118,7 @@ def run_test(test):
             test()
         finally:
             _current_run.test_done()
+            _current_run.wait_for_finish()
             _current_run = None
 
 class Test(object):
@@ -182,6 +183,7 @@ class TestRun(object):
         self._finished = False
         self._test_done = False
         self._expectations = 0
+        self._checking_expectation = False
         
         assert _profile is not None, 'no instrument profile loaded'
         
@@ -193,9 +195,6 @@ class TestRun(object):
         Called by the test machinery when a note is detected and identified.
         """
         
-        if self._test_done:
-            return
-        
         with self._ready:
             self.detected_notes.append(note)
             
@@ -203,8 +202,12 @@ class TestRun(object):
             self._ready.notifyAll()
         
         with self._processed:
-            # wait for the test thread to process the note
-            self._processed.wait()
+            if self._checking_expectation:
+                self._processed.wait()
+            else:
+                while not self._test_done and not self._finished:
+                    # wait for the test thread to process the note
+                    self._processed.wait(0.1)
     
     def finished(self):
         """
@@ -213,9 +216,21 @@ class TestRun(object):
         At this point, all the notes that were going to be detected will
         have already been detected.
         """
+        
         with self._ready:
             self._finished = True
             self._ready.notifyAll()
+    
+    def wait_for_finish(self):
+        with self._ready:
+            while not self._finished:
+                self._ready.wait()
+            if self.detected_notes:
+                # there are some notes that we detected but did not expect;
+                # warn about these extra notes
+                warn(ExtraNoteWarning(self.detected_notes, self.test,
+                    self._expectations + 1))
+            return
     
     def test_done(self):
         with self._processed:
@@ -241,6 +256,7 @@ class TestRun(object):
         self._expectations += 1
         index = self._expectations
         
+        self._checking_expectation = True
         with self._ready:
             first_run = True
             
@@ -249,7 +265,6 @@ class TestRun(object):
                 # detected
                 for expected in list(expected_notes):
                     for i, detected in enumerate(self.detected_notes):
-                        print i, expected, detected
                         if expected == detected:
                             # whoo! clear the note from the expected set and
                             # the detected list
@@ -258,6 +273,7 @@ class TestRun(object):
                 
                 if not expected_notes:
                     # we've found all the notes we were expecting here!
+                    self._checking_expectation = False
                     break
                 
                 # tell the playback thread that we've processed a note
@@ -268,7 +284,10 @@ class TestRun(object):
                 first_run = False
                 self._ready.wait()
         
-        print self.detected_notes
+        # tell the playback thread that we've finished processing notes
+        with self._processed:
+            self._processed.notify()
+        
         if self.detected_notes:
             # there are some notes that we detected but did not expect;
             # warn about these extra notes
