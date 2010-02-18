@@ -10,6 +10,7 @@ from mstand import audio
 from mstand.capture import Capturer
 from mstand.filters import *
 from mstand.notes import Note
+from mstand.profile import *
 from mstand.terminal import color
 
 from threading import Thread, Condition
@@ -174,29 +175,9 @@ class Detector(object):
     Examines tracked components and decides what notes are being played.
     """
     
-    _profile = {
-        Note.parse('C4'): [
-            (Note.parse('C3'), {Note.parse('C#4'): 0.83, Note.parse('G4'): 0.39, Note.parse('A#3'): 0.38, Note.parse('D4'): 0.29,
-                    Note.parse('E5'): 0.28, Note.parse('C#3'): 0.27, Note.parse('A3'): 0.27})
-        ],
-        Note.parse('D4'): [
-            (Note.parse('D4'), {Note.parse('D5'): 0.95, Note.parse('D#4'): 0.92, Note.parse('C4'): 0.34, Note.parse('E4'): 0.31,
-                    Note.parse('D#5'): 0.30, Note.parse('C#5'): 0.30, Note.parse('C#4'): 0.28})
-        ],
-        Note.parse('A4'): [
-            (Note.parse('D3'), {Note.parse('A#4'): 0.43, Note.parse('G#4'): 0.34, Note.parse('D#3'): 0.27, Note.parse('D4'): 0.27,
-                    Note.parse('D3'): 0.24})
-        ],
-        Note.parse('C5'): [
-            (Note.parse('C4'), {Note.parse('C#4'): 0.61, Note.parse('C4'): 0.44, Note.parse('C#5'): 0.40, Note.parse('B4'): 0.39,
-                    Note.parse('D4'): 0.22, Note.parse('B3'): 0.20, Note.parse('A#4'): 0.19}),
-            (Note.parse('C5'), {Note.parse('C#5'): 0.39, Note.parse('B4'): 0.38, Note.parse('A#4'): 0.17, Note.parse('D5'): 0.15})
-        ],
-    }
-    
-    def __init__(self, callback):
+    def __init__(self, callback, profile):
         self._callback = callback
-        
+        self._profile = profile
         self._counter = 0
     
     def _get_potential_supporters(self, target, components):
@@ -228,7 +209,7 @@ class Detector(object):
     
     def _analyze_component(self, peaked_component, all_components):
         try:
-            fingerprints = self._profile[peaked_component.note]
+            fingerprints = self._profile.peaks[peaked_component.note]
         except KeyError:
             return
             # print 'sorry, got nothing for %s' % str(peaked_component.note)
@@ -293,7 +274,9 @@ def create_listener(options):
 if __name__ == '__main__':
     from optparse import OptionParser
     
-    parser = OptionParser('%prog [options] note')
+    parser = OptionParser('%prog [-p profile | -t] [options] note')
+    parser.add_option('-p', '--profile',
+        help='The profile to use for note identification')
     parser.add_option('-t', '--track', action='store_true',
         help="Don't detect notes, just track components")
     parser.add_option('-r', '--recording', metavar='FILENAME',
@@ -305,6 +288,16 @@ if __name__ == '__main__':
     parser.set_defaults(interval=1024, window_size=4096, track=False)
     
     options, args = parser.parse_args()
+    
+    if not options.track and not options.profile:
+        parser.error('you must specify a profile if you are not using --track')
+    
+    profile = None
+    if options.profile:
+        try:
+            profile = load_profile(options.profile)
+        except Exception, e:
+            parser.error('error reading profile: %s' % e)
     
     watched = [Note.parse(arg) for arg in args]
     
@@ -332,8 +325,14 @@ if __name__ == '__main__':
     def print_match(note, distance):
         print 'Found %s (distance: %.2f)' % (note, distance)
     
-    callback = show_components if options.track else \
-        Detector(print_match).update
+    if options.track:
+        # just track the frequency components visually; do not ID notes
+        callback = show_components
+    else:
+        # full monty: identify the notes being played
+        detector = Detector(print_match, profile)
+        callback = detector.update
+    
     tracker = Tracker(callback)
     
     if options.track:
@@ -358,4 +357,3 @@ if __name__ == '__main__':
         # capture live
         capturer = Capturer(create_listener(options), tracker.update)
         capturer.run_until_interrupt()
-
