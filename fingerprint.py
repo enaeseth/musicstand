@@ -10,6 +10,7 @@ from mstand import audio
 from mstand.capture import Capturer
 from mstand.filters import *
 from mstand.notes import Note
+from mstand.profile import *
 from mstand.terminal import color
 
 from threading import Thread, Condition
@@ -110,38 +111,43 @@ def create_fingerprint(capturer, target, harmonics):
         print '  Supporter: %3s; intensity: %.1f (%.0f%%)' % \
             (note, intensity, ratio * 100.0)
     
-    return
-    print color('purple!', '--> Play %s and hold it.',
-        str(target))
-    results = capture()
-    
-    peaks = find_note_peaks(results, peak_note)
-    for peak in peaks:
-        result = results[peak]
-        
-        print 'Peak at result %d:' % peak
-        print color('green!', '  %3s: %.1f', peak_note, result[peak_note])
-        
-        for supporter, ratio in supporters:
-            actual_ratio = result[supporter] / result[peak_note]
-            print '  %3s: %.1f (%.0f%%; expected %.0f%%)' % \
-                (supporter, result[supporter], 100 * actual_ratio, 100 * ratio)
+    return (peak_note, peak_intensity, supporters)
 
 if __name__ == '__main__':
     from optparse import OptionParser
+    import os.path
     
     parser = OptionParser('%prog [options] note')
     parser.add_option('-n', '--harmonics', metavar='NUMBER', type='int',
         help='the number of harmonics to examine')
     parser.add_option('-p', '--profile', metavar='NAME',
         help='the profile to which this fingerprint will be added')
+    parser.add_option('-s', '--sure', '--overwrite', dest='sure',
+        action='store_true', help="don't confirm saving new fingerprints")
     parser.add_option('-i', '--interval', metavar='SAMPLES', type='int',
         help='FFT interval')
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
-    parser.set_defaults(interval=1024, window_size=4096, harmonics=3)
+    parser.set_defaults(interval=1024, window_size=4096, harmonics=3,
+        sure=False)
     
     options, args = parser.parse_args()
+    
+    profile = None
+    if options.profile:
+        try:
+            profile = load_profile(options.profile)
+        except IOError, e:
+            if e.errno == 2:
+                print 'Creating new profile.'
+                profile_name = options.profile.capitalize().replace('-', ' ')
+                path = os.path.join(get_profile_storage_dir(),
+                    '%s.json' % options.profile)
+                profile = Profile(profile_name, path=path)
+            else:
+                raise
+        except ProfileReadError, e:
+            parser.error('invalid profile: %s' % e)
     
     capturer = Capturer(create_listener(options), notes=False)
     
@@ -154,8 +160,40 @@ if __name__ == '__main__':
     
     capturer.start()
     try:
-        create_fingerprint(capturer, target, harmonics)
+        result = create_fingerprint(capturer, target, harmonics)
+        peak_note, peak_intensity, supporters = result
+        
+        if not profile:
+            raise RuntimeError('Not written to any profile.')
+        
+        if peak_note in profile.peaks:
+            # prepare to overwrite any existing fingerprint
+            
+            existing = None
+            for i, fingerprint in enumerate(profile.peaks[peak_note]):
+                note, existing_supporters = fingerprint
+                
+                if note == target:
+                    existing = profile.peaks[peak_note].pop(i)
+                    break
+            
+            if existing and not options.sure:
+                answer = raw_input('Do you want to overwrite the existing '
+                    'fingerprint? (y/n): ')
+                if not answer.lower().startswith('y'):
+                    raise RuntimeError('Aborted.')
+        
+        if peak_note not in profile.peaks:
+            profile.peaks[peak_note] = []
+        
+        supporter_map = {}
+        for note, intensity, ratio in supporters:
+            supporter_map[note] = ratio
+        
+        profile.peaks[peak_note].append((target, supporter_map))
+        profile.save()
+    except RuntimeError, e:
+        # yeah, this is abuse of exceptions... I don't care
+        print e.args[0]
     finally:
         capturer.stop()
-    
-    capturer.stop()

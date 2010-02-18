@@ -22,7 +22,7 @@ class Profile(object):
     
     def __init__(self, name, peaks=None, path=None):
         self.name = name
-        self.peaks = peaks
+        self.peaks = peaks or {}
         self.path = path
     
     def save(self, path=None):
@@ -82,7 +82,7 @@ def read_profile(stream, path=None):
         for note, components in signalled_notes:
             components = dict((Note.parse(str(component)), intensity)
                 for component, intensity in components.iteritems())
-            signalled.append((note, components))
+            signalled.append((Note.parse(str(note)), components))
         peaks[peaking_note] = signalled
     
     return Profile(name, peaks, path)
