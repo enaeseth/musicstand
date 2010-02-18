@@ -91,11 +91,10 @@ if __name__ == '__main__':
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(20.0),
-        # SmoothFilter(4, 3)
+        MinimumIntensityFilter(5.0)
     ]
     
-    listener = audio.Listener(window_size=4096*4, interval=1024,
+    listener = audio.Listener(window_size=4096, interval=1024,
         filters=filters)
     
     queue = listener.start()
