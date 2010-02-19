@@ -13,9 +13,9 @@ class MakeLilyPond:
 		self.notes_to_add = []
 		self.main_display = window
 		
-		# Entered notes use info from previous notes - keep track of those here
+		# New notes use info from previous notes - keep track of that stuff here
 		self.last_octave = 4
-		self.last_note = 'C'
+		self.last_note = 'c'
 		self.last_duration = 0
 		
 		self.initialize_lilypond_string()
@@ -32,7 +32,7 @@ class MakeLilyPond:
 		## This stuff goes in the note creation frame
 		#############################################
 		self.note_buttons_frame = Frame(self.top_frame)
-		self.note_buttons_frame.grid(column=0,row=5)
+		self.note_buttons_frame.grid(column=0,row=1,rowspan=2)
 		
 		self.add_time_button = Button(self.note_buttons_frame, \
 			command = self.add_note, text = "Add note", \
@@ -73,7 +73,7 @@ class MakeLilyPond:
 		## This stuff goes in the main buttons frame
 		############################################
 		self.main_buttons_frame = Frame(self.top_frame)
-		self.main_buttons_frame.grid(column=5,row=10)
+		self.main_buttons_frame.grid(column=2,row=3)
 		
 		self.quit_button = Button(self.main_buttons_frame, \
 			command = self.quit,text="Quit", \
@@ -86,11 +86,11 @@ class MakeLilyPond:
 		self.add_create_button.grid(column=0,row=0,padx=5)
 		
 		
-		#########################################
+		######################################
 		## This stuff goes in the output frame
-		#########################################
-		self.output_frame = Frame(self.top_frame,height=100,width=500)
-		self.output_frame.grid(column=5,row=5,columnspan=2,sticky=E+W)
+		######################################
+		self.output_frame = Frame(self.top_frame,height=100,width=300)
+		self.output_frame.grid(column=3,row=2,sticky=W)
 		self.output_frame.grid_propagate(False)
 		
 		self.note_output = StringVar()
@@ -98,11 +98,11 @@ class MakeLilyPond:
 		
 		self.notes_entered_1 = Label(self.output_frame,text="Last note added:", \
                         font = ("Trebuchet MS", 14))
-		self.notes_entered_1.grid(column=1,row=0,sticky=W)
+		self.notes_entered_1.grid(column=1,row=0)
 
 		self.notes_entered_2 = Label(self.output_frame,textvariable=self.note_output, \
                         font = ("Trebuchet MS",18))
-		self.notes_entered_2.grid(column=2,row=0,sticky=E)
+		self.notes_entered_2.grid(column=2,row=0)
 		
 		self.delete_note_button = Button(self.output_frame, \
 			command = self.delete_note,text="Delete last note", \
@@ -111,11 +111,11 @@ class MakeLilyPond:
 		
 		
 		
-		#############################################
+		#########################################
 		## This stuff goes in the song info frame
-		#############################################
+		#########################################
 		self.song_info_frame = Frame(self.top_frame)
-		self.song_info_frame.grid(column=5,row=0)
+		self.song_info_frame.grid(column=0,row=0,columnspan=4)
 		
 		self.title_label = Label(self.song_info_frame,text="Song name:", \
                         font = ("Trebuchet MS", 14))
@@ -123,21 +123,21 @@ class MakeLilyPond:
 		
 		self.title_entry = Entry(self.song_info_frame)
 		self.title_entry.grid(column=1,row=0,padx=5)
-		
+		'''
 		self.time_sig_label = Label(self.song_info_frame,text="Time signature:", \
                         font = ("Trebuchet MS", 14))
 		self.time_sig_label.grid(column=2,row=0,padx=5)
 		
 		self.time_sig_entry = Entry(self.song_info_frame,width=5)
 		self.time_sig_entry.grid(column=3,row=0,padx=5)
-		
+		'''
 		
 		
 	def initialize_lilypond_string(self):
 		self.lilypond_text = []
-		#self.lilypond_text.append("\\header { \n")
-		#self.lilypond_text.append("title=\"Untitled\" \n")
-		#self.lilypond_text.append("}\n") # close \header
+		self.lilypond_text.append("\\paper { \n")
+		self.lilypond_text.append("print-page-number = ##f \n")
+		self.lilypond_text.append("}\n") # close \paper
 		self.lilypond_text.append("\\score { \n")
 		self.lilypond_text.append("\\relative c' { \n")
 		self.lilypond_text.append("\\time 4/4 \n")
@@ -156,8 +156,8 @@ class MakeLilyPond:
 	
 		# Put the notes in the array of lilypond text
 		for note in self.notes_to_add:
-			self.lilypond_text[3] += note
-			self.lilypond_text[3] += " "
+			self.lilypond_text[6] += note
+			self.lilypond_text[6] += " "
 		
 		# Get the rest of the song info
 		self.title = self.title_entry.get()
@@ -168,12 +168,13 @@ class MakeLilyPond:
 			for word in self.title.lower().split():
 				folder_name += word 
 			file_name = folder_name + ".ly"
+			add_song(self.title)
 			
 		else: # If no title set, use the current time as the folder name
-			file_name = "newsong.ly"
 			cur_time = time.localtime()
-			folder_name = str(cur_time[3]) + str(cur_time[2]) + str(cur_time[1]) \
-				+str(cur_time[0])
+			folder_name = str(cur_time[4]) + str(cur_time[3]) + str(cur_time[2])
+			add_song(folder_name)
+			file_name = folder_name+".ly"
 		
 		outfile = open(file_name,'w')
 		for item in self.lilypond_text:
@@ -186,14 +187,8 @@ class MakeLilyPond:
 		# Clear everything out
 		self.initialize_lilypond_string()
 		self.last_octave = 4
-		self.last_note = 'C'
+		self.last_note = 'c'
 		self.last_duration = 0
-		
-		
-		# ADD THE NEW FILE TO THE CONFIG AND MAKE IT PLAYABLE/SELECTABLE
-		# THE LIST DOESN'T UPDATE - CAN WE CHANGE THAT?
-		# ALTERNATIVELY, SHOULD WE JUST LOAD THE SONG UP IMMEDIATELY?
-		add_song(self.title)
 		
 		
 	
@@ -201,9 +196,11 @@ class MakeLilyPond:
 		'''Deletes the most recently added note. If no notes left, does nothing.'''
 		try:
 			del self.notes_to_add[-1]
+			self.last_note = self.notes_to_add[-1][0]
+			self.last_duration = int(re.findall('[0-9]', self.notes_to_add[-1])[0])
 			self.update_note_output()
 		except IndexError:
-			pass
+			self.note_output.set("")
 		
 	def add_note(self):
 		new_note = ""
@@ -212,37 +209,54 @@ class MakeLilyPond:
 		new_note_name = self.note_name_entry.get().lower()
 		if new_note_name == "":
 			return
-		elif new_note_name not in ['a','b','c','d','e','f','g']:
+		elif new_note_name not in ['a','b','c','d','e','f','g','r']:
 			return
 		else:
 			new_note += new_note_name
-			
-		# Make correct sharp/flat
-		cur_sharp = self.sharp.get()
-		sharp_ly_format = ""
-		if cur_sharp == "sharp":
-			sharp_ly_format = "is"
-		elif cur_sharp == "flat":
-			sharp_ly_format = "es"
-			
-		new_note += sharp_ly_format
 		
+		if new_note_name != 'r':
+			# Make correct sharp/flat
+			cur_sharp = self.sharp.get()
+			sharp_ly_format = ""
+			if cur_sharp == "sharp":
+				sharp_ly_format = "is"
+			elif cur_sharp == "flat":
+				sharp_ly_format = "es"
+				
+			new_note += sharp_ly_format
+
+		# Modify the octave accordingly
 		note_octave = self.note_octave_entry.get()
-		
-		# Do some checking here for octave
+		if note_octave != "":
+			note_octave = int(note_octave)
+			actual_oct_dif = note_octave - self.last_octave
+			theoretical_oct_dif = self.find_octave(self.last_note,new_note_name)
+			new_octave = actual_oct_dif - theoretical_oct_dif
+			
+			marker = ""
+			if new_octave > 0:
+				marker = "'"
+			elif new_octave < 0:
+				marker = ","
+			
+			new_note += (marker*abs(new_octave))
+				
+			self.last_octave = note_octave
 		
 		# If the duration of this note is different from the last,
 		# make it so. Otherwise, lilypond will already know
 		new_duration = self.duration.get()
-		if new_duration != self.last_duration:
-			new_note += str(new_duration)
-			self.last_duration = new_duration
+		new_note += str(new_duration)
+		self.last_duration = int(new_duration)
 		
 		# Add the new note to the array
 		self.notes_to_add.append(new_note)		
 				
-		# Update Label's text value i.e. self.note_output.set("TEXT")
-		self.update_note_output()		
+		# Update Label's text value
+		self.update_note_output()
+		
+		# Set what most recently added note was
+		self.last_note = new_note_name
 	
 	def update_note_output(self):
 		if len(self.notes_to_add) == 0:
@@ -252,13 +266,35 @@ class MakeLilyPond:
 	
 	def interpret_note(self,note):
 		
-		mappings = {1:"whole",2:"half",4:"quarter", 8:"eighth", 16:"sixteenth"}
+		mappings = {1:"whole", 2:"half", 4:"quarter", 8:"eighth", 16:"sixteenth"}
 		
 		note_name = note[0].upper()
+		if note_name == 'R':
+			note_name = "Rest"
+			
 		if "is" in note:
 			note_name += " sharp"
 		elif "es" in note:
 			note_name += " flat"
 		
-		note_name = note_name + "(%s)" % mappings[self.last_duration]
+		note_name = note_name + " (%s)" % mappings[self.last_duration]
 		return note_name
+		
+		
+	def find_octave(self, prevnote, curnote):
+		'''Given the previous note and the new note, determines whether
+		the new note is in the same octave or not.'''
+		curval = ord(curnote)
+		prevval = ord(prevnote)
+		if curval > prevval:
+			dif = curval - prevval
+			if dif > 3:
+				return -1
+			else:
+				return 0
+		else:
+			dif = prevval - curval
+			if dif > 3:
+				return 1
+			else:
+				return 0

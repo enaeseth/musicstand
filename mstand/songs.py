@@ -74,7 +74,6 @@ def create_lilypond_files(file_path, song_name):
     '''Given a path to a lilypond file and the desired name of the song, creates
     a directory for that song in our Songs folder, copies the lilypond file to
     it, and runs the lilypond script to create .ps, .pdf, and .midi files.'''
-    
     cache_dir = get_song_path(song_name)
     file_name = os.path.basename(file_path)
     
