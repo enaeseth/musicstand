@@ -56,6 +56,8 @@ def load_tests():
     try:
         sys.path.insert(0, source_dir)
         for filename in os.listdir(source_dir):
+            if filename.startswith('.'):
+                continue
             if filename.endswith('.py'):
                 module = filename.replace('.py', '')
                 __import__(module, globals(), locals())
