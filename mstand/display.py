@@ -9,8 +9,6 @@ NEED TO FIX:
 
 --Make it so that if they're playing the piece, they can't change the zoom view.
 
---Write next_page_voverlay_zoomed(self, speed)
-
 --Deal with end of music stuff (index out of range!)
 '''
 
@@ -42,9 +40,9 @@ class Display(object):
         self.measure_percents = None 
         self.ps_info = None
         self.zoom_measures = []
-        self.lines_per_page = 1
+        self.lines_per_page = 2
         self.playing = False
-        self.cur_measure = -1
+        self.cur_measure = 0
         self.cur_page_index = 0
         self.cur_zoom_index = 0
         self.zoomed = False
@@ -53,10 +51,11 @@ class Display(object):
         self.color = "Red"
         self.zoom_staff_height = -1
         self.cur_line = 0
-        self.num_measures_before_transition = 2
+        self.num_measures_before_transition = 0
         self.transition_measures = []
         self.transition_measures_zoom = []
-        self.speed = 10
+        self.speed = 5
+        self.transition = self.next_page_voverlay
         
         self.updates = Queue(0)
         self.song_loaded = song_loaded
@@ -65,6 +64,7 @@ class Display(object):
         self.parent.after(50, self.check_for_updates)
     
     def remake_welcome(self):
+    	print "Let's remake things!"
     	self.welcome_frame.destroy()
     	self.welcome_frame = self.init_welcome(self.parent)
     
@@ -76,7 +76,8 @@ class Display(object):
             # import traceback
             # traceback.print_stack()
             # print '--> Looks like the new measure in town is %d.' % present_measure
-            self.updates.put(present_measure)
+            #self.updates.put(present_measure)
+            pass
     
     def check_for_updates(self):
         try:
@@ -133,7 +134,7 @@ class Display(object):
             self.load_music(song_name)
             
         def make_lilypond():
-        	MakeLilyPond(self.parent,self)
+        	MakeLilyPond(self.parent)
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
@@ -230,10 +231,9 @@ class Display(object):
     def create_zoom_images(self, images, lines_per):
         #this stuff is so inefficient now, I really should fix it....
         final_pages = []
-        max_set = False
-        max_size = -1
         self.cur_line = 0
         for j in range(len(images)):
+            max_size = -1
             line_percents = self.line_percents[j]
             page = images[j]
             width = page.size[0]
@@ -241,7 +241,8 @@ class Display(object):
             top = 0
             bottom = 0
             pages = []
-            first_measure_of_page = -1
+            first_line = -1
+            first_line_set = False
             for i in range(-1, len(line_percents), lines_per):
                 page_done = False
                 if i == -1:
@@ -256,13 +257,16 @@ class Display(object):
                     bottom = line_percents[i+lines_per+1][1]*height
                 zoom = page.crop((0, int(round(top)), width, int(round(bottom))))
                 pages.append(zoom)
-
+                
                 #doing measure translations
                 crop_percent = zoom.size[1]/float(height)
                 new_staff_height = self.staff_height/crop_percent
                 lines_used = [k for k in range(self.cur_line, self.cur_line+lines_per)]
+                if not first_line_set:
+                    first_line = self.cur_line
+                    first_line_set = True
                 ydiff = -1
-                mes_temp = 0
+                mes_temp = -1
                 for k in range(len(self.measure_percents)):
                     if self.measure_percents[k][3] in lines_used:
                         ydiff = (self.measure_percents[k][1] - (top/height))
@@ -271,20 +275,19 @@ class Display(object):
                         #Tuple: (x, y, delta-x, line#, staffheight, page)
                         self.zoom_measures.append([self.measure_percents[k][0],\
                             yper, self.measure_percents[k][2], \
-                        self.measure_percents[k][3], new_staff_height, j])
+                        self.measure_percents[k][3], new_staff_height])
                         mes_temp = k
                 self.transition_measures_zoom.append(mes_temp)
                 if page_done:
                     break
                 self.cur_line += lines_per   
+                
             #fix size of first sheet on each page and all measure percentages.
             orig_size = float(pages[0].size[1])
-            if not max_set:
-                if len(pages) > 2:
-                    max_size = pages[1].size[1]
-                else:
-                    max_size = pages[0].size[1]
-                max_set = True
+            if len(pages) > 2:
+                max_size = pages[1].size[1]
+            else:
+                max_size = pages[0].size[1]
             per_change = (max_size - orig_size) / float(max_size)
             new_page = Image.new(pages[0].mode,(pages[0].size[0], max_size), 'White')
             first_page = pages[0].copy()
@@ -294,11 +297,10 @@ class Display(object):
             y_end = max_size
             new_page.paste(first_page, (x_start, y_start, x_end, y_end))
             pages[0] = new_page
-            lines = [l for l in range(0, lines_per)]
+            lines = [l for l in range(first_line, first_line+lines_per)]
             change = int(per_change * max_size)
             for k in range(len(self.zoom_measures)):
-                if self.zoom_measures[k][3] in lines and self.zoom_measures[k][5] == j:
-                    #fix  y-percentage and staff height
+                if self.zoom_measures[k][3] in lines:
                     new_y = (self.zoom_measures[k][1]*orig_size + change) / max_size
                     self.zoom_measures[k][1] = new_y
                     new_staff = (self.zoom_measures[k][4]*orig_size) / max_size
@@ -320,7 +322,7 @@ class Display(object):
                 pages[-1] = new_page
             lines = [l for l in range(self.cur_line, self.cur_line+lines_per)]
             for k in range(len(self.zoom_measures)):
-                if self.zoom_measures[k][3] in lines and self.zoom_measures[k][5] == j:
+                if self.zoom_measures[k][3] in lines:
                     new_y = (self.zoom_measures[k][1]*orig_size) / max_size
                     self.zoom_measures[k][1] = new_y
                     new_staff = (self.zoom_measures[k][4]*orig_size) / max_size
@@ -329,10 +331,10 @@ class Display(object):
             self.cur_line += lines_per
         self.cur_line = 0
         self.image_dir_zoom = final_pages
-
+        
     def next_page_voverlay(self):
         if self.zoomed:
-            pass
+            self.next_page_voverlay_zoomed()
         else:
             next_image_index = self.cur_page_index+1
             cur_image = self.image_dir[self.cur_page_index].copy()
@@ -357,7 +359,37 @@ class Display(object):
                 image = self.cur_tkimage)
             self.cur_image.grid()
             self.cur_page_index = next_image_index
-        
+    
+    def next_page_voverlay_zoomed(self):
+        next_zoom_index = self.cur_zoom_index + 1
+        cur_image = self.image_dir_zoom[self.cur_page_index][self.cur_zoom_index].copy()
+        try:
+            next_image = self.image_dir_zoom[self.cur_page_index][next_zoom_index].copy()
+        except IndexError:
+            next_image = self.image_dir_zoom[self.cur_page_index+1][0].copy()
+            next_zoom_index = 0
+            self.cur_page_index += 1
+        self.changing_page = True
+        width = next_image.size[0]
+        height = self.speed
+        while self.changing_page:
+            region = next_image.crop((0, 0, width, height))
+            cur_image.paste(region, (0, 0, width, height))
+            cur_tkimage = ImageTk.PhotoImage(cur_image)
+            self.cur_image.destroy()
+            self.cur_image = Label(self.parent, image = cur_tkimage)
+            self.cur_image.grid()
+            height += self.speed
+            self.cur_image.update()
+            if height >= next_image.size[1]:
+                self.changing_page = False
+        self.cur_image.destroy()
+        self.cur_tkimage = ImageTk.PhotoImage(next_image)
+        self.cur_image = Label(self.parent, \
+            image = self.cur_tkimage)
+        self.cur_image.grid()
+        self.cur_zoom_index = next_zoom_index
+
     def next_page_vslide(self):
         if self.zoomed:
             self.next_page_vslide_zoomed()
@@ -412,7 +444,6 @@ class Display(object):
         index = 0
         if not new_page:
             while not_done:
-                #print self.zoom_measures[index][3]
                 if self.zoom_measures[index][3] == self.cur_line:
                     new_top = int(round((self.zoom_measures[index][1] + \
                         self.zoom_measures[index][4])*next_image.size[1]))
@@ -420,17 +451,15 @@ class Display(object):
                 index += 1
         else:
             new_page = False
-        #transition = Image.new(next_image.mode, next_image.size, 'Pink')
+        diff = abs(cur_image.size[1]-next_image.size[1])
         while self.changing_page:
-            #if self.cur_page_index == 1:
-            #x = raw_input('hit enter')
             transition = Image.new(next_image.mode, next_image.size, 'Green')
-            new_region = next_image.crop((0, new_top, width, new_top+height))
+            new_region = next_image.crop((0, new_top, width, new_top+height+diff))
             old_region = cur_image.crop((0, height, width, \
                 cur_image.size[1]))
             #magic 1s that move the picture up 1 pixel and make it less ugly
-            transition.paste(new_region, (0, next_image.size[1]-height-1, width, \
-                next_image.size[1]-1))
+            transition.paste(new_region, (0, cur_image.size[1]-height, width, \
+                cur_image.size[1]+diff))
             transition.paste(old_region, (0, 0, width, cur_image.size[1]-height))
             self.cur_tkimage = ImageTk.PhotoImage(transition)
             self.cur_image.destroy()
@@ -438,7 +467,8 @@ class Display(object):
             self.cur_image.grid()
             height += self.speed
             self.cur_image.update()
-            if height >= next_image.size[1]-new_top:
+            #if height >= next_image.size[1]-new_top:
+            if height >= cur_image.size[1] or height >= next_image.size[1]-new_top:
                 self.changing_page = False
         
         self.cur_image.destroy()
@@ -449,42 +479,39 @@ class Display(object):
         self.cur_zoom_index = next_zoom_index
     
     def highlight_measure(self, measure):
-        if self.zoomed:
-            self.highlight_next_measure_zoomed()
-        else:
-        # import traceback
-        # traceback.print_stack()
-            print '--> Going to measure %d.' % measure
-            #need to update matcher or ignore if it gives me a measure before.
-            if measure + self.num_measures_before_transition in self.transition_measures:
-                print measure, 'BEFORE TRANSITION'
-                print self.transition_measures
-                self.next_page_voverlay()
-                measure += self.num_measures_before_transition
-                print 'DONE'
-            print measure, 'AFTER TRANSITION'
-            next_image = self.image_dir[self.cur_page_index].copy()
-            im_width, im_height = next_image.size
-            x_start = int(self.measure_percents[measure][0]*im_width)
-            x_end = int(x_start + self.measure_percents[measure][2]*im_width)
-            y_start = int(self.measure_percents[measure][1]*im_height)
-            y_end = int((self.measure_percents[measure][1]+self.staff_height)*im_height)
-            self.transparent = self.transparent.resize((x_end-x_start, y_end-y_start))
-            next_image.paste(self.color, (x_start, y_start, x_end, y_end), self.transparent)
-            self.cur_tkimage = ImageTk.PhotoImage(next_image)
-            self.changing_page = True
-            self.cur_image.destroy()
-            self.cur_image = Label(self.parent, image = self.cur_tkimage)
-            self.cur_image.grid()
-            self.cur_image.update()
-            self.changing_page = False
+        if measure >= self.cur_measure:
             self.cur_measure = measure
+            if self.zoomed:
+                self.highlight_next_measure_zoomed()
+            else:
+                print '--> Going to measure %d.' % self.cur_measure
+                if self.cur_measure + self.num_measures_before_transition in self.transition_measures:
+                    self.transition()
+                    self.cur_measure += self.num_measures_before_transition
+                next_image = self.image_dir[self.cur_page_index].copy()
+                im_width, im_height = next_image.size
+                x_start = int(self.measure_percents[self.cur_measure][0]*im_width)
+                x_end = int(x_start + self.measure_percents[self.cur_measure][2]*im_width)
+                y_start = int(self.measure_percents[self.cur_measure][1]*im_height)
+                y_end = int((self.measure_percents[self.cur_measure][1]+self.staff_height)*im_height)
+                self.transparent = self.transparent.resize((x_end-x_start, y_end-y_start))
+                next_image.paste(self.color, (x_start, y_start, x_end, y_end), self.transparent)
+                self.cur_tkimage = ImageTk.PhotoImage(next_image)
+                self.changing_page = True
+                self.cur_image.destroy()
+                self.cur_image = Label(self.parent, image = self.cur_tkimage)
+                self.cur_image.grid()
+                self.cur_image.update()
+                self.changing_page = False
     
     def highlight_next_measure_zoomed(self):
+        print '--> Going to measure %d.' % self.cur_measure
+        if self.cur_measure + self.num_measures_before_transition in self.transition_measures_zoom:
+            self.transition()
+            self.cur_measure += self.num_measures_before_transition + 1
         next_image = self.image_dir_zoom[self.cur_page_index][self.cur_zoom_index].copy()
         im_width = next_image.size[0]
         im_height = next_image.size[1]
-        self.cur_measure += 1
         x_start = int(self.zoom_measures[self.cur_measure][0]*im_width)
         x_end = int(x_start + self.zoom_measures[self.cur_measure][2]*im_width)
         y_start = int(self.zoom_measures[self.cur_measure][1]*im_height)
@@ -503,6 +530,12 @@ class Display(object):
     def highlight_next_measure(self):
         self.highlight_measure(self.cur_measure + 1)
     
+    
+    def set_transition(self, transition):
+        if transition == 'Slide':
+            self.transition = self.next_page_vslide
+        elif transition == 'Overlay':
+            self.transition = self.next_page_voverlay
 
 class OptionsPane(object):
     def __init__(self, parent, display):
@@ -542,7 +575,21 @@ class OptionsPane(object):
             text = "Highlight Next Measure")
         self.button_highlight_next_measure.grid()
         
+        self.v2 = StringVar()
+        def set_transition():
+            display.set_transition(self.v2.get())
+
+        self.transition_type = Menubutton(self.buttons_frame, text = \
+            "Transition", relief = RAISED)
+        menu = Menu(self.transition_type)
+        menu.add_radiobutton(label = 'Slide', variable = self.v2, \
+            command = set_transition)
+        menu.add_radiobutton(label = 'Overlay', variable = self.v2,\
+            command = set_transition)
         
+        self.transition_type.config(menu = menu)
+        self.transition_type.grid()
+
 
 def dln_the_white():
     magic()
