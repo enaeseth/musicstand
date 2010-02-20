@@ -18,7 +18,7 @@ Midi opening
 Start Button
 Pause Button
 
-
+IF TIME
 '''
 
 from __future__ import with_statement
@@ -123,7 +123,7 @@ class Display(object):
             text = music_list.get(index)
             self.load_music(text)
         
-        music_list.bind('<ButtonRelease-1>', get_sel)
+        music_list.bind('<Double-Button-1>', get_sel)
         
         new_song_entry = Entry(container, fg="Red")
         new_song =  Label(container, text = "New Song", \
