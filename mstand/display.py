@@ -64,7 +64,6 @@ class Display(object):
         self.parent.after(50, self.check_for_updates)
     
     def remake_welcome(self):
-    	print "Let's remake things!"
     	self.welcome_frame.destroy()
     	self.welcome_frame = self.init_welcome(self.parent)
     
@@ -134,7 +133,7 @@ class Display(object):
             self.load_music(song_name)
             
         def make_lilypond():
-        	MakeLilyPond(self.parent)
+        	MakeLilyPond(self.parent,self)
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))

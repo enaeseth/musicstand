@@ -98,10 +98,10 @@ class MakeLilyPond:
 		
 		self.notes_entered_1 = Label(self.output_frame,text="Last note added:", \
                         font = ("Trebuchet MS", 14))
-		self.notes_entered_1.grid(column=1,row=0)
+		self.notes_entered_1.grid(column=1, row=0, sticky=W)
 
 		self.notes_entered_2 = Label(self.output_frame,textvariable=self.note_output, \
-                        font = ("Trebuchet MS",18))
+                        font = ("Trebuchet MS",18),height=1,width=20)
 		self.notes_entered_2.grid(column=2,row=0)
 		
 		self.delete_note_button = Button(self.output_frame, \
@@ -123,14 +123,7 @@ class MakeLilyPond:
 		
 		self.title_entry = Entry(self.song_info_frame)
 		self.title_entry.grid(column=1,row=0,padx=5)
-		'''
-		self.time_sig_label = Label(self.song_info_frame,text="Time signature:", \
-                        font = ("Trebuchet MS", 14))
-		self.time_sig_label.grid(column=2,row=0,padx=5)
 		
-		self.time_sig_entry = Entry(self.song_info_frame,width=5)
-		self.time_sig_entry.grid(column=3,row=0,padx=5)
-		'''
 		
 		
 	def initialize_lilypond_string(self):
@@ -163,7 +156,6 @@ class MakeLilyPond:
 		self.title = self.title_entry.get()
 		
 		if not self.title == "":
-			#self.lilypond_text[1] = "title=\"%s\" \n" % self.title
 			folder_name = ''
 			for word in self.title.lower().split():
 				folder_name += word 
@@ -243,8 +235,9 @@ class MakeLilyPond:
 				
 			self.last_octave = note_octave
 		
-		# If the duration of this note is different from the last,
-		# make it so. Otherwise, lilypond will already know
+		# Set the duration of this note (it's not necessary if the 
+		# new note's duration is the same as that of the last, but it
+		# makes it easier for displaying stuff)
 		new_duration = self.duration.get()
 		new_note += str(new_duration)
 		self.last_duration = int(new_duration)
