@@ -3,13 +3,22 @@ THINGS TO NOTE:
 -we start measures and pages at 0!
 
 NEED TO FIX:
---Goddamn page2 zoom1 measure screwy percentages.
+-- AFTER EXITING CURRENT SONG TO WELCOME SCREEN, MATCHER CRASHES WHEN LOADING NEW SONG
 
 --Fix if there's only 1 zoom section, right now it just keeps big page.
 
 --Make it so that if they're playing the piece, they can't change the zoom view.
 
 --Deal with end of music stuff (index out of range!)
+
+OPTIONS TO ADD
+Midi opening
+-- make sure that matcher stops listening for a while.
+
+Start Button
+Pause Button
+
+
 '''
 
 from __future__ import with_statement
@@ -40,7 +49,7 @@ class Display(object):
         self.measure_percents = None 
         self.ps_info = None
         self.zoom_measures = []
-        self.lines_per_page = 2
+        self.lines_per_page = 1
         self.playing = False
         self.cur_measure = 0
         self.cur_page_index = 0
@@ -56,6 +65,8 @@ class Display(object):
         self.transition_measures_zoom = []
         self.speed = 5
         self.transition = self.next_page_voverlay
+        self.changing_page = False
+        self.image_dir_orig = []
         
         self.updates = Queue(0)
         self.song_loaded = song_loaded
@@ -64,7 +75,12 @@ class Display(object):
         self.parent.after(50, self.check_for_updates)
     
     def remake_welcome(self):
-    	self.welcome_frame.destroy()
+        try:
+            self.welcome_frame.destroy()
+            self.cur_image.destroy()
+            self.options_window.destroy()
+        except:
+            pass
     	self.welcome_frame = self.init_welcome(self.parent)
     
     def update_position(self, matcher):
@@ -79,12 +95,14 @@ class Display(object):
             pass
     
     def check_for_updates(self):
+        measure_to_highlight = None
         try:
-            while True:
-                measure = self.updates.get_nowait()
-                self.highlight_measure(measure)
+            while not self.changing_page:
+                measure_to_highlight = self.updates.get_nowait()
         except QueueEmpty:
             pass
+        if measure_to_highlight is not None:
+            self.highlight_measure(measure_to_highlight)
         
         self.parent.after(50, self.check_for_updates)
     
@@ -133,7 +151,7 @@ class Display(object):
             self.load_music(song_name)
             
         def make_lilypond():
-        	MakeLilyPond(self.parent,self)
+        	MakeLilyPond(self.parent)
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
@@ -214,6 +232,7 @@ class Display(object):
             "transparent.png"))
 
         self.create_zoom_images(image_list, self.lines_per_page)
+        self.image_dir_orig = image_list
         image_list = self.resize_images(image_list)
         return image_list
     
@@ -229,6 +248,9 @@ class Display(object):
     
     def create_zoom_images(self, images, lines_per):
         #this stuff is so inefficient now, I really should fix it....
+        self.transition_measures_zoom = []
+        self.zoom_measures = []
+        
         final_pages = []
         self.cur_line = 0
         for j in range(len(images)):
@@ -535,15 +557,25 @@ class Display(object):
             self.transition = self.next_page_vslide
         elif transition == 'Overlay':
             self.transition = self.next_page_voverlay
+            
+    def set_zoom_lines(self, num):
+        self.lines_per_page = num
+        self.create_zoom_images(self.image_dir_orig, self.lines_per_page)
+        
+    def set_speed(self, speed):
+        self.speed = speed
+        
+    def set_measures(self, num):
+        self.num_measures_before_transition = num
 
 class OptionsPane(object):
     def __init__(self, parent, display):
         self.parent = parent
         self.display = display
-        options = Toplevel(self.parent)
-        options.title("Options")
-        options.geometry('+900+50')
-        self.top_frame = Frame(options)
+        self.options = Toplevel(self.parent)
+        self.options.title("Options")
+        self.options.geometry('+900+50')
+        self.top_frame = Frame(self.options)
         self.top_frame.grid()
         
         self.buttons_frame = Frame(self.top_frame)
@@ -588,6 +620,51 @@ class OptionsPane(object):
         
         self.transition_type.config(menu = menu)
         self.transition_type.grid()
+        
+        self.lines_label = Label(self.buttons_frame, text = "Lines per zoomed page:")
+        self.lines_label.grid()
+        
+        def set_lines(var):
+            display.set_zoom_lines(int(var))
+            
+        self.zoom_lines = Scale(self.buttons_frame, from_ = 1, to = 5, \
+            orient = HORIZONTAL, command = set_lines)
+        self.zoom_lines.set(3)
+        self.zoom_lines.grid()
+        
+        self.speed_label = Label(self.buttons_frame, text= "Transition Speed:")
+        self.speed_label.grid()
+        
+        def set_speed(var):
+            display.set_speed(int(var))
+            
+        self.speed =Scale(self.buttons_frame, from_ = 2, to = 30, \
+            resolution = 2, orient=HORIZONTAL, command = set_speed)
+        self.speed.set(10)
+        self.speed.grid()
+        
+        self.measures_label = Label(self.buttons_frame, text = "Measures before transition:")
+        self.measures_label.grid()
+        
+        def set_measures(var):
+            display.set_measures(int(var))
+        
+        self.measures = Scale(self.buttons_frame, from_ = 0, to = 10, \
+            orient = HORIZONTAL, command = set_measures)
+        self.measures.set(2)
+        self.measures.grid()
+        
+        def return_to_welcome():
+            display.remake_welcome()
+        
+        self.new_song_button = Button(self.buttons_frame, command = \
+            return_to_welcome, text = "New Song")
+        self.new_song_button.grid()
+        
+        
+        
+    def destroy(self):
+        self.options.destroy()
 
 
 def dln_the_white():
