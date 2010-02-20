@@ -54,13 +54,13 @@ class Profile(object):
             write_profile(self, stream)
         self.path = path
     
-    def find_match(self, peak, supporters, minimum_match=0.8):
+    def find_match(self, peak, supporters, minimum_match=0.85):
         try:
             notes = self.peaks[peak]
         except KeyError:
             return None
         
-        supporting_notes = set(supporters)
+        supporting_notes = set()
         for note, note_supporters in notes:
             supporting_notes |= set(note_supporters)
         
@@ -78,6 +78,10 @@ class Profile(object):
         
         best_note = None
         best_match = -1
+        
+        # if peak == Note.parse('G5'):
+        #     print ' '.join('%3s' % str(n) for n in sorted(list(supporting_notes)))
+        #     print heard_vector
         
         # print 'peak of %3s: ' % str(peak),
         for note, note_supporters in notes:

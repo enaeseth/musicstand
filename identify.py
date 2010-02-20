@@ -78,9 +78,8 @@ class Component(object):
             self.state = FADED
             self.faded_count += 1
         elif intensity < self.intensity:
-            if self.state is RISING:
-                if (self.peak is None or previous_intensity > self.peak[1] * .95 and float(self.weak_notes_since_last)/self.notes_since_last_peak
-                >= 0.5):
+            if self.state is RISING or self.state is HEARD:
+                if self.peak is None or previous_intensity > self.peak[1] * .95:
                     self._mark_possible_peak(previous_intensity)
             self.state = FADING
         elif intensity > self.intensity:
@@ -241,7 +240,7 @@ class Detector(object):
         
         def get_average_intensity(component, index):
             start = (-index) - 1
-            length = 2
+            length = 3
             
             intensities = component.intensities[start:start+length]
             try:
@@ -251,6 +250,18 @@ class Detector(object):
         
         peak = peaked_component.peak
         peak_offset = peaked_component.counter - peak[0]
+        
+        # print peaked_component.note, peak[1],
+        # for component in all_components:
+        #     try:
+        #         intensity = component.intensities[-peak_offset - 1]
+        #         if peak[1] < intensity * 0.8:
+        #             print
+        #             return
+        #     except IndexError:
+        #         continue
+        # print
+        
         # print peaked_component.intensities
         peak_intensity = get_average_intensity(peaked_component, peak_offset)
         
@@ -259,25 +270,32 @@ class Detector(object):
             for component in all_components:
                 if component == peaked_component:
                     continue
-            
+                
                 intensity = get_average_intensity(component, peak_offset)
                 ratio = intensity / peak_intensity
-            
-                if ratio > 0.07:
+                
+                if ratio > 0.15:
                     supporters[component.note] = ratio
         
         if self._debug_peaks:
-            print >>sys.stderr, '%3d:' % peak[0],
-            if supporters and sum(supporters.itervalues()) / len(supporters) < 0.3:
-                color_name = 'green!'
+            # print >>sys.stderr, '%4d:' % peak[0],
+            if supporters:
+                average = sum(supporters.itervalues()) / len(supporters)
+                if average <= 0.5:
+                    color_name = 'green!'
+                else:
+                    color_name = 'blue!'
+                average_s = '%.2f' % average
             else:
-                color_name = 'blue!'
-            print >>sys.stderr, color(color_name, 'Component %s peaked at '
-                '(%.2f => %.2f)' % (peaked_component.note, peak[1],
-                peak_intensity))
-            print >>sys.stderr, '    ' + ', '.join('%s: %.2f' % pair
-                for pair in sorted(supporters.iteritems(),
-                    key=lambda (n, i): i, reverse=True))
+                color_name = 'yellow!'
+                average_s = '----'
+                average = 0.0
+            # print >>sys.stderr, color(color_name, 'Component %s peaked at '
+            #     '(%.2f => %.2f): %s', peaked_component.note, peak[1],
+            #     peak_intensity, average_s)
+            # print >>sys.stderr, '    ' + ', '.join('%s: %.2f' % pair
+            #     for pair in sorted(supporters.iteritems(),
+            #         key=lambda (n, i): i, reverse=True))
         
         if peak_intensity <= 0.0:
             return
@@ -285,10 +303,10 @@ class Detector(object):
         best_match = self._profile.find_match(peaked_component.note,
             supporters)
         
-        if best_match:
+        if best_match and average <= 0.8:
             if self._debug:
-                print >>sys.stderr, '    Peak of %s @ %s indicates note %s ' \
-                    '(distance: %.2f)' % ((peaked_component.note,
+                print >>sys.stderr, '%3d:  Peak of %s @ %s indicates note %s ' \
+                    '(distance: %.2f)' % ((peak[0], peaked_component.note,
                     peak_intensity) + best_match)
             
             self._callback(*best_match)
@@ -298,7 +316,7 @@ def create_listener(options):
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(5.0),
+        MinimumIntensityFilter(10.0),
         # SmoothFilter(1, 4)
     ]
     
@@ -359,7 +377,7 @@ if __name__ == '__main__':
             print ' '.join(describe(c) for c in watched_components)
     
     def print_match(note, distance):
-        print 'Found %s (distance: %.2f)' % (note, distance)
+        print color('red!', 'Found %s (distance: %.3f)' % (note, distance))
     
     if options.track:
         # just track the frequency components visually; do not ID notes

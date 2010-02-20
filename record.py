@@ -40,7 +40,8 @@ if __name__ == '__main__':
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(options.min_intensity)
+        MinimumIntensityFilter(options.min_intensity),
+        SmoothFilter(1, 4)
     ]
     
     listener = audio.Listener(window_size=options.window_size,
