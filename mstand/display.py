@@ -68,6 +68,7 @@ class Display(object):
         self.changing_page = False
         self.image_dir_orig = []
         self.last_line_on_page = []
+        self.cur_song_name = None
         
         self.updates = Queue(0)
         self.song_loaded = song_loaded
@@ -111,7 +112,7 @@ class Display(object):
         container = Frame(parent, width = 500, height = 500)
         #container.pack_propagate(0)    #Used to stop snapping to widget size
         welcome = Label(container, text = "Welcome to \n Digital Music Stand!", \
-            font = ("Trebuchet MS", 24))
+            font = ("Monaco", 24))
         
         music = get_songs()
         
@@ -125,7 +126,6 @@ class Display(object):
             self.load_music(text)
         
         music_list.bind('<Double-Button-1>', get_sel)
-        #font = ("Trebuchet MS", 12)
         new_song_entry = Entry(container, fg="Red")
         new_song =  Label(container, text = "New Song")
         lilypond_entry = Entry(container, fg="Red")
@@ -133,9 +133,9 @@ class Display(object):
         current_songs = Label(container, text="Current Songs")
         
         def get_file_entry():
-            #need to also get song name and put it somewhere
             lilypond_file = lilypond_entry.get()
             song_name = new_song_entry.get()
+            self.cur_song_name = song_name
             folder_name = ''
             for word in song_name.lower().split():
                 folder_name += word
@@ -151,13 +151,9 @@ class Display(object):
         def make_lilypond():
             MakeLilyPond(self.parent,self)
         
-        load_button = Button(container, command = get_file_entry, text = "Load",\
-            font = ("Trebuchet MS", 10))
+        load_button = Button(container, command = get_file_entry, text = "Load")
         
-        
-        create_button = Button(container, command = make_lilypond,text="Make",\
-            font = ("Trebuchet MS", 10))
-        
+        create_button = Button(container, command = make_lilypond, text="Make")
         
         container.grid()
         welcome.grid(columnspan=2)
@@ -214,6 +210,7 @@ class Display(object):
             self.cur_tkimage = ImageTk.PhotoImage(self.image_dir[0])
             self.cur_image = Label(self.parent, image = self.cur_tkimage)
         self.cur_image.grid()
+        self.highlight_measure(0)
     
     def load_images(self, path):
         dir_list = None
@@ -508,7 +505,8 @@ class Display(object):
                 self.highlight_next_measure_zoomed()
             else:
                 print '--> Going to measure %d.' % self.cur_measure
-                if self.cur_measure + self.num_measures_before_transition in self.transition_measures:
+                if self.cur_measure + self.num_measures_before_transition in \
+                self.transition_measures:
                     self.transition()
                     self.cur_measure += self.num_measures_before_transition
                 next_image = self.image_dir[self.cur_page_index].copy()
@@ -516,10 +514,12 @@ class Display(object):
                 x_start = int(self.measure_percents[self.cur_measure][0]*im_width)
                 x_end = int(x_start + self.measure_percents[self.cur_measure][2]*im_width)
                 y_start = int(self.measure_percents[self.cur_measure][1]*im_height)
-                y_end = int((self.measure_percents[self.cur_measure][1]+self.staff_height)*im_height)
+                y_end = int((self.measure_percents[self.cur_measure][1] + \
+                    self.staff_height)*im_height)
                 extra_x = int((x_end-x_start)*.4)
                 extra_y = int(self.staff_height*im_height)
-                self.transparent = self.transparent.resize((x_end-x_start+(2*extra_x), y_end-y_start+(2*extra_y)))
+                self.transparent = self.transparent.resize((x_end - x_start + \
+                    (2*extra_x), y_end - y_start + (2*extra_y)))
                 next_image.paste(self.color, (x_start-extra_x, y_start-extra_y,\
                     x_end+extra_x, y_end+extra_y), self.transparent)
                 self.cur_tkimage = ImageTk.PhotoImage(next_image)
@@ -532,7 +532,8 @@ class Display(object):
     
     def highlight_next_measure_zoomed(self):
         print '--> Going to measure %d.' % self.cur_measure
-        if self.cur_measure + self.num_measures_before_transition in self.transition_measures_zoom:
+        if self.cur_measure + self.num_measures_before_transition in \
+        self.transition_measures_zoom:
             self.transition()
             self.cur_measure += self.num_measures_before_transition + 1
         next_image = self.image_dir_zoom[self.cur_page_index][self.cur_zoom_index].copy()
@@ -545,8 +546,10 @@ class Display(object):
             self.zoom_measures[self.cur_measure][4])*im_height)
         extra_y = int(self.zoom_measures[self.cur_measure][4]*im_height)
         extra_x = int((x_end-x_start)*.4)
-        transparent = self.transparent.resize((x_end-x_start+(2*extra_x), y_end-y_start+(2*extra_y)))
-        next_image.paste("Red", (x_start-extra_x, y_start-extra_y, x_end+extra_x, y_end+extra_y), transparent)
+        transparent = self.transparent.resize((x_end - x_start + (2*extra_x), \
+            y_end - y_start + (2*extra_y)))
+        next_image.paste("Red", (x_start - extra_x, y_start - extra_y, x_end + \
+            extra_x, y_end + extra_y), transparent)
         self.cur_tkimage = ImageTk.PhotoImage(next_image)
         self.changing_page = True
         self.cur_image.destroy()
@@ -593,10 +596,10 @@ class OptionsPane(object):
             display.zoomed = self.v.get()
             display.load_sheetmusic()
         
-        Radiobutton(self.buttons_frame, text="Regular", variable = self.v, value = False,\
-            command = set_zoom).grid()
-        Radiobutton(self.buttons_frame, text="Zoomed", variable = self.v, value = True,\
-            command = set_zoom).grid()
+        Radiobutton(self.buttons_frame, text="Regular", variable = self.v, \
+            value = False, command = set_zoom).grid()
+        Radiobutton(self.buttons_frame, text="Zoomed", variable = self.v, \
+            value = True, command = set_zoom).grid()
         
         self.button_next_measure = Button(self.buttons_frame, \
             command = self.display.next_page_vslide, \
@@ -628,7 +631,8 @@ class OptionsPane(object):
         self.transition_type.config(menu = menu)
         self.transition_type.grid()
         
-        self.lines_label = Label(self.buttons_frame, text = "Lines per zoomed page:")
+        self.lines_label = Label(self.buttons_frame, text = \
+            "Lines per zoomed \page:")
         self.lines_label.grid()
         
         def set_lines(var):
@@ -650,7 +654,8 @@ class OptionsPane(object):
         self.speed.set(10)
         self.speed.grid()
         
-        self.measures_label = Label(self.buttons_frame, text = "Measures before transition:")
+        self.measures_label = Label(self.buttons_frame, text = \
+            "Measures before transition:")
         self.measures_label.grid()
         
         def set_measures(var):
