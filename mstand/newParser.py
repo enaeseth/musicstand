@@ -18,7 +18,7 @@ class Note(object):
         self.octave = 0
 
     def pitch_to_note(self,pitch):
-    	'''MIDI gives us a number that corresponds to a note on a keyboard. For instance, 60 is Middle C. This converts that number to the note.'''
+        '''MIDI gives us a number that corresponds to a note on a keyboard. For instance, 60 is Middle C. This converts that number to the note.'''
         pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'], 7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
         self.octave = ((pitch)/12)-1
         norm_pitch = pitch-(12*(self.octave+1))
@@ -27,22 +27,22 @@ class Note(object):
         self.accidental = new_pitch[1]
 
     def note_to_dict(self, notes_by_start_time, start_time):
-    	'''Puts all the info into a form readable by the matcher.'''
+        '''Puts all the info into a form readable by the matcher.'''
         notes_by_start_time[start_time] = [self.measure, self.beat_number, self.duration, [(self.octave, self.pitch, self.accidental)]]
 
 def add_multiple(pitch):
-	'''If there are more than one note at a given time (MULTIPLE NOTES!?!?!) this adds those new notes to the correct place.'''
+    '''If there are more than one note at a given time (MULTIPLE NOTES!?!?!) this adds those new notes to the correct place.'''
     pitch_dict = {0:['C',None],1:['C','sharp'],2:['D',None],3:['E','flat'],4:['E',None],5:['F',None],6:['F','sharp'], 7:['G',None],8:['G','sharp'],9:['A',None],10:['B','flat'],11:['B',None]}
     octave = ((pitch)/12)-1
     new_pitch, new_acc = pitch_dict[pitch-(12*(octave+1))][0], pitch_dict[pitch-(12*(octave+1))][1]
     return (octave, new_pitch, new_acc)
 
 def is_current(generated_file, source_file):
-	'''Eric did this.'''
+    '''Eric did this.'''
     return os.path.getmtime(generated_file) >= os.path.getmtime(source_file)
 
 def parse_file(filename):
-	'''This function is Charles in Charge in this file.'''
+    '''This function is Charles in Charge in this file.'''
     mf2t = os.path.join(os.path.dirname(__file__), './mf2t')
     
     base, ext = os.path.splitext(filename)
@@ -94,7 +94,7 @@ def parse_file(filename):
     return big_note_array
 
 if __name__ == '__main__':
-	filename = sys.argv[1]
-	notes = parse_file(filename)
-	for item in notes:
-		print item
+    filename = sys.argv[1]
+    notes = parse_file(filename)
+    for item in notes:
+        print item
