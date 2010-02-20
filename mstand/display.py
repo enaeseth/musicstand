@@ -33,7 +33,7 @@ from songs import *
 from lilypondcreator import *
 
 class Display(object):
-    def __init__(self, parent, song_loaded, debug=False):
+    def __init__(self, parent, callbacks, debug=False):
         self.parent = parent
         self.parent.title("Digital Music Stand")
         self.parent.geometry('+50+50')
@@ -71,7 +71,9 @@ class Display(object):
         self.cur_song_name = None
         
         self.updates = Queue(0)
-        self.song_loaded = song_loaded
+        self.song_loaded = callbacks['song_loaded']
+        self.song_stopped = callbacks['song_stopped']
+        self.song_restarted = callbacks['song_restarted']
         
         self.welcome_frame = self.init_welcome(self.parent)
         self.parent.after(50, self.check_for_updates)
@@ -195,7 +197,7 @@ class Display(object):
         self.image_dir = self.load_images(path)
         self.welcome_frame.destroy()
         self.load_sheetmusic()
-        self.song_loaded(self)
+        self.song_loaded(self.lilypond_file)
         self.options_window = OptionsPane(self.parent, self)
     
     def load_sheetmusic(self):
@@ -586,6 +588,16 @@ class Display(object):
         
     def set_measures(self, num):
         self.num_measures_before_transition = num
+        
+    def reset_song_positions(self):
+        self.cur_line = 0
+        self.cur_measure = 0
+        self.cur_page_index = 0
+        self.cur_zoom_index = 0
+        
+    def reset_sheetmusic(self):
+        self.load_sheetmusic()
+        self.highlight_measure(self.cur_measure)
 
 class OptionsPane(object):
     def __init__(self, parent, display):
@@ -641,7 +653,7 @@ class OptionsPane(object):
         self.transition_type.grid()
         
         self.lines_label = Label(self.buttons_frame, text = \
-            "Lines per zoomed \page:")
+            "Lines per zoomed page:")
         self.lines_label.grid()
         
         def set_lines(var):
@@ -675,13 +687,19 @@ class OptionsPane(object):
         self.measures.grid()
         
         def return_to_welcome():
+            self.display.song_stopped()
             display.remake_welcome()
         
         self.new_song_button = Button(self.buttons_frame, command = \
             return_to_welcome, text = "New Song")
         self.new_song_button.grid()
         
+        def restart_song():
+            self.display.song_restarted()
         
+        self.restart_song_button = Button(self.buttons_frame,
+            command=restart_song, text='Restart Song')
+        self.restart_song_button.grid()
         
     def destroy(self):
         self.options.destroy()

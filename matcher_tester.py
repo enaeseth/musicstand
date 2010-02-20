@@ -4,7 +4,7 @@
 from __future__ import with_statement
 from mstand.interpret import OvertoneInterpreter
 from mstand.notes import *
-from mstand.newParser import parse_file
+from mstand.parser import parse_file
 from mstand.match.matcher import Matcher, Interval
 from mstand.match.algorithm import Algorithm
 from mstand.terminal import color

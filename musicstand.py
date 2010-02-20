@@ -11,11 +11,12 @@ from __future__ import with_statement
 
 from mstand import notes
 from mstand import audio
+from mstand.app import MusicStand
 from mstand.filters import *
 from mstand.interpret import ProfileInterpreter, OvertoneInterpreter, CombinedInterpreter
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
-from mstand.newParser import parse_file
+from mstand.parser import parse_file
 from mstand.profile import *
 from mstand.display import Display
 
@@ -26,59 +27,6 @@ import operator
 from Tkinter import Tk
 from threading import Thread
 from time import sleep
-
-def run(algorithm, listener, interpreter, debug=False):
-    running = [True]
-    display = None
-    queue = None
-    matcher = [None]
-    
-    def position_changed(matcher):
-        display.update_position(matcher)
-
-        if matcher.current_location >= (len(matcher.intervals) - 1):
-            print 'Done with the piece!'
-            matcher.shutdown()
-            running[0] = False
-    
-    def get_from_listener():
-        while running[0]:
-            try:
-                offset, buckets, data = queue.pop()
-            except KeyboardInterrupt:
-                break
-            # XXX: this is dumb
-            frequencies = [p[0] for p in sorted(buckets, key=lambda b: b[1])]
-            
-            if matcher[0]:
-                matcher[0].add(frequencies)
-        
-        if matcher[0] is not None:
-            matcher[0].shutdown()
-    
-    queue = listener.start()
-    capture_thread = Thread(target=get_from_listener, name='Listenerer')
-    capture_thread.start()
-    
-    def song_loaded(display):
-        print "Song loaded: %s" % display.lilypond_file
-        notes = parse_file(display.lilypond_file)
-        # print notes
-        matcher[0] = Matcher(notes, algorithm, interpreter,
-            position_changed, debug)
-        matcher[0].start()
-        print "Started matcher."
-    
-    try:
-        root = Tk()
-        display = Display(root, song_loaded, debug)
-        root.mainloop()
-    except KeyboardInterrupt:
-        print
-    finally:
-        running[0] = False
-        capture_thread.join()
-        listener.stop()
 
 def main(algorithm, window_size, interval, interpreter, debug=False):
     filters = [
@@ -92,7 +40,8 @@ def main(algorithm, window_size, interval, interpreter, debug=False):
     listener = audio.Listener(window_size=window_size, interval=interval,
         filters=filters)
     
-    run(algorithm, listener, interpreter, debug)
+    stand = MusicStand(algorithm, listener, None, interpreter, debug)
+    stand.run()
 
 def get_algorithm(name):
     full_name = 'mstand.match.%s' % name
@@ -187,8 +136,9 @@ if __name__ == '__main__':
             profile = read_profile(stream)
         interpreter = ProfileInterpreter(profile)
     else:
-        profile = load_profile('piano')
-        interpreter = CombinedInterpreter(profile)
+        interpreter = OvertoneInterpreter()
+        # profile = load_profile('piano')
+        # interpreter = CombinedInterpreter(profile)
         print >>sys.stderr, "warning: not using any profile!"
     
     # Do some sanity checks

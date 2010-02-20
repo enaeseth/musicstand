@@ -44,17 +44,16 @@ class Algorithm(object):
         """
         pass
     
-    def filter_frequencies(self, frequencies):
+    def filter_notes(self, notes):
         """
-        Called by a Matcher when new frequencies are available.
+        Called by a Matcher when new notes are available.
         
-        This method should convert the list of frequencies into whatever
-        representation the matching algorithm desires, and return that
-        representation.
+        This method should apply whatever conversions the algorithm wants
+        to the list of notes, and return the resulting list.
         """
         
         # By default, do nothing.
-        return frequencies
+        return notes
     
     def match(self, notes):
         """

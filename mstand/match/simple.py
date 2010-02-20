@@ -17,17 +17,13 @@ class SimpleAlgorithm(Algorithm):
         super(SimpleAlgorithm, self).__init__()
         self.min_octave = min_octave
     
-    def start_piece(self):
-        self.intervals = self.matcher.intervals
+    def starting_piece(self, intervals):
+        self.intervals = intervals
         for interval in self.intervals:
             interval.notes = [freq_to_note(note_to_freq(*note)) for note in interval.notes]
         self.miss_count = 0
         self.current_location = -1
         self.last_notes = None
-    
-    def filter_frequencies(self, frequencies):
-        notes = map(freq_to_note, frequencies)
-        return notes
     
     def match(self, new_notes):
         if new_notes:
