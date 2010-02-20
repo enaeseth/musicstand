@@ -33,7 +33,7 @@ from songs import *
 from lilypondcreator import *
 
 class Display(object):
-    def __init__(self, parent, song_loaded, DEBUG=False):
+    def __init__(self, parent, song_loaded, debug=False):
         self.parent = parent
         self.parent.title("Digital Music Stand")
         self.parent.geometry('+50+50')
@@ -55,7 +55,7 @@ class Display(object):
         self.cur_page_index = 0
         self.cur_zoom_index = 0
         self.zoomed = False
-        self.debug = DEBUG
+        self.debug = debug
         self.transparent = None
         self.color = "Red"
         self.zoom_staff_height = -1
