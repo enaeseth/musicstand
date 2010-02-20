@@ -362,9 +362,14 @@ class Display(object):
             self.changing_page = True
             width = next_image.size[0]
             height = self.speed
+            extra_y = int(cur_image.size[1]*.04)
+            diff = extra_y - (extra_y/2 + extra_y/2)
+            edge = self.transparent.resize((width, extra_y))
             while self.changing_page:
                 region = next_image.crop((0, 0, width, height))
                 cur_image.paste(region, (0, 0, width, height))
+                cur_image.paste('Blue', (0, height - extra_y/2, width, height + \
+                extra_y/2 + diff), edge)
                 cur_tkimage = ImageTk.PhotoImage(cur_image)
                 self.cur_image.destroy()
                 self.cur_image = Label(self.parent, image = cur_tkimage)
@@ -392,14 +397,19 @@ class Display(object):
         self.changing_page = True
         width = next_image.size[0]
         height = self.speed
+        extra_y = int(cur_image.size[1]*.1)
+        diff = extra_y - (extra_y/2 + extra_y/2)
+        edge = self.transparent.resize((width, extra_y))
         while self.changing_page:
             region = next_image.crop((0, 0, width, height))
             cur_image.paste(region, (0, 0, width, height))
+            cur_image.paste('Blue', (0, height - extra_y/2, width, height + \
+                extra_y/2 + diff), edge)
             cur_tkimage = ImageTk.PhotoImage(cur_image)
             self.cur_image.destroy()
             self.cur_image = Label(self.parent, image = cur_tkimage)
             self.cur_image.grid()
-            height += self.speed
+            height += self.speed 
             self.cur_image.update()
             if height >= next_image.size[1]:
                 self.changing_page = False
@@ -477,7 +487,6 @@ class Display(object):
             new_region = next_image.crop((0, new_top, width, new_top+height+diff))
             old_region = cur_image.crop((0, height, width, \
                 cur_image.size[1]))
-            #magic 1s that move the picture up 1 pixel and make it less ugly
             transition.paste(new_region, (0, cur_image.size[1]-height, width, \
                 cur_image.size[1]+diff))
             transition.paste(old_region, (0, 0, width, cur_image.size[1]-height))
