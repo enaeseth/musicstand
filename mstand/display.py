@@ -151,7 +151,7 @@ class Display(object):
             self.load_music(song_name)
             
         def make_lilypond():
-        	MakeLilyPond(self.parent)
+        	MakeLilyPond(self.parent,self)
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
