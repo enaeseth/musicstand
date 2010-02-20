@@ -82,7 +82,7 @@ class Display(object):
             self.options_window.destroy()
         except:
             pass
-    	self.welcome_frame = self.init_welcome(self.parent)
+        self.welcome_frame = self.init_welcome(self.parent)
     
     def update_position(self, matcher):
         interval = matcher.current_interval
@@ -149,14 +149,14 @@ class Display(object):
             self.load_music(song_name)
             
         def make_lilypond():
-        	MakeLilyPond(self.parent,self)
+            MakeLilyPond(self.parent,self)
         
         load_button = Button(container, command = get_file_entry, text = "Load",\
             font = ("Trebuchet MS", 10))
         
         
         create_button = Button(container, command = make_lilypond,text="Make",\
-        	font = ("Trebuchet MS", 10))
+            font = ("Trebuchet MS", 10))
         
         
         container.grid()
