@@ -49,7 +49,7 @@ class Display(object):
         self.measure_percents = None 
         self.ps_info = None
         self.zoom_measures = []
-        self.lines_per_page = 1
+        self.lines_per_page = 2
         self.playing = False
         self.cur_measure = 0
         self.cur_page_index = 0
@@ -67,6 +67,7 @@ class Display(object):
         self.transition = self.next_page_voverlay
         self.changing_page = False
         self.image_dir_orig = []
+        self.last_line_on_page = []
         
         self.updates = Queue(0)
         self.song_loaded = song_loaded
@@ -91,8 +92,8 @@ class Display(object):
             # import traceback
             # traceback.print_stack()
             # print '--> Looks like the new measure in town is %d.' % present_measure
-            self.updates.put(present_measure)
-            #pass
+            #self.updates.put(present_measure)
+            pass
     
     def check_for_updates(self):
         measure_to_highlight = None
@@ -124,15 +125,12 @@ class Display(object):
             self.load_music(text)
         
         music_list.bind('<Double-Button-1>', get_sel)
-        
+        #font = ("Trebuchet MS", 12)
         new_song_entry = Entry(container, fg="Red")
-        new_song =  Label(container, text = "New Song", \
-            font = ("Trebuchet MS", 12))
+        new_song =  Label(container, text = "New Song")
         lilypond_entry = Entry(container, fg="Red")
-        lilypond_file =  Label(container, text = "Lilypond File", \
-            font = ("Trebuchet MS", 12))
-        current_songs = Label(container, text="Current Songs", \
-            font = ('Trebuchet MS', 12))
+        lilypond_file =  Label(container, text = "Lilypond File")
+        current_songs = Label(container, text="Current Songs")
         
         def get_file_entry():
             #need to also get song name and put it somewhere
@@ -196,6 +194,8 @@ class Display(object):
         self.staff_height = self.ps_info[0]
         self.transition_measures = self.ps_info[1]
         self.line_percents = self.ps_info[2]
+        self.last_line_on_page = find_last_lines(self.transition_measures, \
+            self.measure_percents, self.line_percents)
         self.image_dir = self.load_images(path)
         self.welcome_frame.destroy()
         self.load_sheetmusic()
@@ -254,6 +254,7 @@ class Display(object):
         final_pages = []
         self.cur_line = 0
         for j in range(len(images)):
+            last_line = self.last_line_on_page[j]
             max_size = -1
             line_percents = self.line_percents[j]
             page = images[j]
@@ -282,7 +283,9 @@ class Display(object):
                 #doing measure translations
                 crop_percent = zoom.size[1]/float(height)
                 new_staff_height = self.staff_height/crop_percent
-                lines_used = [k for k in range(self.cur_line, self.cur_line+lines_per)]
+                lines_used = [k for k in range(self.cur_line, \
+                    self.cur_line+lines_per if self.cur_line+lines_per <= \
+                    last_line+1 else last_line+1)]
                 if not first_line_set:
                     first_line = self.cur_line
                     first_line_set = True
@@ -301,8 +304,7 @@ class Display(object):
                 self.transition_measures_zoom.append(mes_temp)
                 if page_done:
                     break
-                self.cur_line += lines_per   
-                
+                self.cur_line += lines_per       
             #fix size of first sheet on each page and all measure percentages.
             orig_size = float(pages[0].size[1])
             if len(pages) > 2:
@@ -349,7 +351,7 @@ class Display(object):
                     new_staff = (self.zoom_measures[k][4]*orig_size) / max_size
                     self.zoom_measures[k][4] = new_staff
             final_pages.append(pages)
-            self.cur_line += lines_per
+            self.cur_line = last_line + 1
         self.cur_line = 0
         self.image_dir_zoom = final_pages
         
@@ -651,7 +653,6 @@ class OptionsPane(object):
         
         self.measures = Scale(self.buttons_frame, from_ = 0, to = 10, \
             orient = HORIZONTAL, command = set_measures)
-        self.measures.set(2)
         self.measures.grid()
         
         def return_to_welcome():
@@ -665,6 +666,17 @@ class OptionsPane(object):
         
     def destroy(self):
         self.options.destroy()
+
+def find_last_lines(last_measures, measure_percents, line_percents):
+    last_lines = []
+    for i in range(len(measure_percents)):
+        if i in last_measures:
+            last_lines.append(measure_percents[i][3]-1)
+    total = 0
+    for page in line_percents:
+        total += len(page)
+    last_lines.append(total-1)
+    return last_lines
 
 
 def dln_the_white():
