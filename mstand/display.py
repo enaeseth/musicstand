@@ -92,8 +92,8 @@ class Display(object):
             # import traceback
             # traceback.print_stack()
             # print '--> Looks like the new measure in town is %d.' % present_measure
-            #self.updates.put(present_measure)
-            pass
+            self.updates.put(present_measure)
+            #pass
     
     def check_for_updates(self):
         measure_to_highlight = None
@@ -229,7 +229,7 @@ class Display(object):
         dir_list = [os.path.join(path, filename) for filename in dir_list]
         image_list = [Image.open(image) for image in dir_list]
         self.transparent = Image.open(os.path.join(os.path.dirname(__file__),
-            "transparent.png"))
+            "transparent1.png"))
 
         self.create_zoom_images(image_list, self.lines_per_page)
         self.image_dir_orig = image_list
@@ -517,8 +517,11 @@ class Display(object):
                 x_end = int(x_start + self.measure_percents[self.cur_measure][2]*im_width)
                 y_start = int(self.measure_percents[self.cur_measure][1]*im_height)
                 y_end = int((self.measure_percents[self.cur_measure][1]+self.staff_height)*im_height)
-                self.transparent = self.transparent.resize((x_end-x_start, y_end-y_start))
-                next_image.paste(self.color, (x_start, y_start, x_end, y_end), self.transparent)
+                extra_x = int((x_end-x_start)*.4)
+                extra_y = int(self.staff_height*im_height)
+                self.transparent = self.transparent.resize((x_end-x_start+(2*extra_x), y_end-y_start+(2*extra_y)))
+                next_image.paste(self.color, (x_start-extra_x, y_start-extra_y,\
+                    x_end+extra_x, y_end+extra_y), self.transparent)
                 self.cur_tkimage = ImageTk.PhotoImage(next_image)
                 self.changing_page = True
                 self.cur_image.destroy()
@@ -540,8 +543,10 @@ class Display(object):
         y_start = int(self.zoom_measures[self.cur_measure][1]*im_height)
         y_end = int((self.zoom_measures[self.cur_measure][1] + \
             self.zoom_measures[self.cur_measure][4])*im_height)
-        self.transparent = self.transparent.resize((x_end-x_start, y_end-y_start))
-        next_image.paste("Red", (x_start, y_start, x_end, y_end), self.transparent)
+        extra_y = int(self.zoom_measures[self.cur_measure][4]*im_height)
+        extra_x = int((x_end-x_start)*.4)
+        transparent = self.transparent.resize((x_end-x_start+(2*extra_x), y_end-y_start+(2*extra_y)))
+        next_image.paste("Red", (x_start-extra_x, y_start-extra_y, x_end+extra_x, y_end+extra_y), transparent)
         self.cur_tkimage = ImageTk.PhotoImage(next_image)
         self.changing_page = True
         self.cur_image.destroy()
