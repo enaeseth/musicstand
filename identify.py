@@ -317,7 +317,7 @@ def create_listener(options):
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(10.0),
-        # SmoothFilter(1, 4)
+        SmoothFilter(1, 4)
     ]
     
     return audio.Listener(window_size=options.window_size,

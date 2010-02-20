@@ -58,6 +58,9 @@ class SimpleAlgorithm(Algorithm):
                 # that's exciting, but we should not crash here
                 continue
             
+            if i > 1 and len(expected) == 0:
+            	continue
+            
             self.debug('%02d: [%s] =?= [%s]', position,
                 ', '.join(unparse_note(*note) for note in debug_new_notes),
                 ', '.join(unparse_note(*note) for note in expected))
@@ -71,7 +74,7 @@ class SimpleAlgorithm(Algorithm):
                 # self.miss_count = max(self.miss_count - (i + 1), 0)
                 break
         else:
-            if new_notes != self.last_notes:
+            if new_notes != self.last_notes and len(new_notes) > 0:
                 self.miss_count += 1
         
         if self.miss_count != old_miss_count:

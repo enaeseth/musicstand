@@ -12,7 +12,7 @@ from __future__ import with_statement
 from mstand import notes
 from mstand import audio
 from mstand.filters import *
-from mstand.interpret import ProfileInterpreter, OvertoneInterpreter
+from mstand.interpret import ProfileInterpreter, OvertoneInterpreter, CombinedInterpreter
 from mstand.match.matcher import Matcher
 from mstand.match.algorithm import Algorithm
 from mstand.newParser import parse_file
@@ -187,7 +187,8 @@ if __name__ == '__main__':
             profile = read_profile(stream)
         interpreter = ProfileInterpreter(profile)
     else:
-        interpreter = OvertoneInterpreter()
+        profile = load_profile('piano')
+        interpreter = CombinedInterpreter(profile)
         print >>sys.stderr, "warning: not using any profile!"
     
     # Do some sanity checks
