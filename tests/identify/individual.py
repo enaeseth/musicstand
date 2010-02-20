@@ -16,6 +16,6 @@ def make_note_test(note):
     
     return test_individual_note
 
-notes = ['C3', 'C#3', 'A3', 'C4', 'C#4', 'A4', 'C5', 'C#5', 'A5', 'C6']
+notes = ['C2', 'C#2', 'D2', 'D#2', 'C3', 'C#3', 'A3', 'C4', 'C#4', 'A4', 'C5', 'C#5', 'A5', 'C6']
 for note in notes:
     make_note_test(note)

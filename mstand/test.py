@@ -104,7 +104,7 @@ def get_recording_dir():
     root = os.path.dirname(os.path.dirname(__file__))
     return os.path.join(root, 'tests', 'identify', 'recordings')
 
-def run_test(test):
+def run_test(test, debug=False):
     global _current_run
     
     if not isinstance(test, Test):
@@ -113,7 +113,7 @@ def run_test(test):
     with _run_mutex: # this lock isn't really necessary, but I am paranoid
         assert _current_run is None
         
-        _current_run = TestRun(test)
+        _current_run = TestRun(test, debug)
         error = False
         try:
             test()
@@ -180,7 +180,7 @@ class TestRun(object):
     Stores the state of a particular run through a test.
     """
     
-    def __init__(self, test):
+    def __init__(self, test, debug=False):
         self.test = test
         self.detected_notes = []
         self._ready = Condition()
@@ -192,7 +192,7 @@ class TestRun(object):
         
         assert _profile is not None, 'no instrument profile loaded'
         
-        self._detector = Detector(self.detected, _profile)
+        self._detector = Detector(self.detected, _profile, debug)
         self._tracker = Tracker(self._detector.update)
     
     def detected(self, note, distance):

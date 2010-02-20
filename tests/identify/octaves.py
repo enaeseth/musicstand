@@ -13,3 +13,11 @@ def test_c_series():
     expect('C4')
     expect('C5')
     expect('C6')
+
+@test('lol')
+def test_march_g_split():
+    play('g_march')
+    expect('G4')
+    expect('G3')
+    expect('G3')
+    expect('G4')

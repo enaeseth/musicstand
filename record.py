@@ -93,7 +93,7 @@ if __name__ == '__main__':
             path = os.path.join(base, 'tests', 'identify', 'recordings', path)
         
         parent = os.path.dirname(path)
-        if not os.path.isdir(parent):
+        if parent and not os.path.isdir(parent):
             os.makedirs(parent)
         
         recording = {

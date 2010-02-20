@@ -18,6 +18,7 @@ from mstand.terminal import color
 from threading import Thread, Condition
 from collections import defaultdict
 import cPickle as pickle
+import sys
 
 # Component states:
 HEARD  = intern('heard')   # a component that was just heard
@@ -105,12 +106,14 @@ class Component(object):
                 self.weak_notes_since_last += 1
         
     def _mark_possible_peak(self, intensity):
+        index = self.counter - 1
+        
         if self.possible_peak:
             count, peak_intensity = self.possible_peak
             if intensity <= peak_intensity:
                 return
         
-        self.possible_peak = (self.counter, intensity)
+        self.possible_peak = (index, intensity)
     
     def _check_peak(self):
         intensities = self.intensities[-PEAK_EVIDENCE:]
@@ -198,11 +201,12 @@ class Detector(object):
     """
     
 
-    def __init__(self, callback, profile, debug=False):
+    def __init__(self, callback, profile, debug=False, debug_peaks=False):
         self._callback = callback
         self._profile = profile
         self._counter = 0
         self._debug = debug
+        self._debug_peaks = debug_peaks
     
     def _get_potential_supporters(self, target, components):
         frequency = target.frequency
@@ -236,8 +240,8 @@ class Detector(object):
             # print 'sorry, got nothing for %s' % str(peaked_component.note)
         
         def get_average_intensity(component, index):
-            start = index - 1
-            length = 6
+            start = (-index) - 1
+            length = 2
             
             intensities = component.intensities[start:start+length]
             try:
@@ -245,47 +249,47 @@ class Detector(object):
             except ZeroDivisionError:
                 return 0.0
         
-        def get_distance(fingerprint, supporters):
-            distance = 0.0
-            if len(fingerprint) == 0:
-                return distance
-            for component, intensity in fingerprint.iteritems():
-                actual_intensity = supporters.get(component, 0.0)
-                distance += (100*actual_intensity - 100*intensity) ** 2
-            return distance / len(fingerprint)
-        
         peak = peaked_component.peak
         peak_offset = peaked_component.counter - peak[0]
+        # print peaked_component.intensities
         peak_intensity = get_average_intensity(peaked_component, peak_offset)
+        
+        supporters = {}
+        if peak_intensity > 0.0:
+            for component in all_components:
+                if component == peaked_component:
+                    continue
+            
+                intensity = get_average_intensity(component, peak_offset)
+                ratio = intensity / peak_intensity
+            
+                if ratio > 0.07:
+                    supporters[component.note] = ratio
+        
+        if self._debug_peaks:
+            print >>sys.stderr, '%3d:' % peak[0],
+            if supporters and sum(supporters.itervalues()) / len(supporters) < 0.3:
+                color_name = 'green!'
+            else:
+                color_name = 'blue!'
+            print >>sys.stderr, color(color_name, 'Component %s peaked at '
+                '(%.2f => %.2f)' % (peaked_component.note, peak[1],
+                peak_intensity))
+            print >>sys.stderr, '    ' + ', '.join('%s: %.2f' % pair
+                for pair in sorted(supporters.iteritems(),
+                    key=lambda (n, i): i, reverse=True))
+        
         if peak_intensity <= 0.0:
             return
         
-        supporters = {}
-        for component in all_components:
-            if component == peaked_component:
-                continue
-            
-            intensity = get_average_intensity(component, peak_offset)
-            ratio = intensity / peak_intensity
-            
-            if ratio > 0.08:
-                supporters[component.note] = ratio
+        best_match = self._profile.find_match(peaked_component.note,
+            supporters)
         
-        most_badass = max(supporters.itervalues())
-        if most_badass > 1:
-            for note, intensity in supporters.iteritems():
-                supporters[note] /= most_badass
-        
-        best_match = min(((note, get_distance(fingerprint, supporters))
-            for note, fingerprint in fingerprints), key=lambda (n, d): d)
-        
-        if best_match[1] <= 200:
+        if best_match:
             if self._debug:
-                print 'Peak of %s gave note %s (distance: %.2f)' % \
-                    (peaked_component.note, best_match[0], best_match[1])
-                print '    ' + ', '.join('%s: %.2f' % pair
-                    for pair in sorted(supporters.iteritems(),
-                        key=lambda (n, i): i, reverse=True))
+                print >>sys.stderr, '    Peak of %s @ %s indicates note %s ' \
+                    '(distance: %.2f)' % ((peaked_component.note,
+                    peak_intensity) + best_match)
             
             self._callback(*best_match)
 
@@ -309,18 +313,20 @@ if __name__ == '__main__':
         help='The profile to use for note identification')
     parser.add_option('-t', '--track', action='store_true',
         help="Don't detect notes, just track components")
+    parser.add_option('-d', '--debug', action='store_true',
+        help="Debug note identification")
+    parser.add_option('--peaks', action='store_true',
+        help='Debug peak detection')
     parser.add_option('-r', '--recording', metavar='FILENAME',
         help='Use a recording of FFT results instead of capturing live')
     parser.add_option('-i', '--interval', metavar='SAMPLES', type='int',
         help='FFT interval')
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
-    parser.set_defaults(interval=1024, window_size=4096, track=False)
+    parser.set_defaults(interval=1024, window_size=4096, track=False,
+        debug=False, peaks=False, profile='piano')
     
     options, args = parser.parse_args()
-    
-    if not options.track and not options.profile:
-        parser.error('you must specify a profile if you are not using --track')
     
     profile = None
     if options.profile:
@@ -360,7 +366,8 @@ if __name__ == '__main__':
         callback = show_components
     else:
         # full monty: identify the notes being played
-        detector = Detector(print_match, profile)
+        detector = Detector(print_match, profile, debug=options.debug,
+            debug_peaks=options.peaks)
         callback = detector.update
     
     tracker = Tracker(callback)
@@ -377,7 +384,12 @@ if __name__ == '__main__':
     if options.recording:
         # read the FFT results from a file created by audio/test.py
         with open(options.recording, 'rb') as stream:
-            results = pickle.load(stream)
+            recording = pickle.load(stream)
+        
+        if isinstance(recording, dict) and 'results' in recording:
+            results = recording['results']
+        else:
+            results = recording
         
         for buckets in results:
             buckets = [(Note.from_frequency(freq), intensity)

@@ -96,11 +96,12 @@ def create_fingerprint(capturer, target, harmonics):
         if note == peak_note:
             continue
         
-        start = index - 1
-        length = 6
+        start = index
+        length = 2
         
         parts = results[start:start+length]
         avg_intensity = sum(p[note] for p in parts) / len(parts)
+        print note, avg_intensity
         ratio = (avg_intensity / peak_intensity)
         if ratio > 0.1:
             # print '    ' + repr([p[note] for p in parts])
@@ -151,49 +152,62 @@ if __name__ == '__main__':
     
     capturer = Capturer(create_listener(options), notes=False)
     
-    try:
-        target = Note.parse(args[0])
-    except IndexError:
-        parser.error('please tell me what note to fingerprint')
-    
-    harmonics = target.get_harmonics(options.harmonics)
+    targets = []
+    is_range = False
+    for arg in args:
+        if arg == '-':
+            is_range = True
+            continue
+        
+        note = Note.parse(arg)
+        if is_range:
+            start = targets[-1].semitone + 1
+            for i in xrange(start, note.semitone + 1):
+                targets.append(Note.from_semitone(i))
+        else:
+            targets.append(note)
     
     capturer.start()
     try:
-        result = create_fingerprint(capturer, target, harmonics)
-        peak_note, peak_intensity, supporters = result
-        
-        if not profile:
-            raise RuntimeError('Not written to any profile.')
-        
-        if peak_note in profile.peaks:
-            # prepare to overwrite any existing fingerprint
+        for target in targets:
+            harmonics = target.get_harmonics(options.harmonics)
             
-            existing = None
-            for i, fingerprint in enumerate(profile.peaks[peak_note]):
-                note, existing_supporters = fingerprint
+            result = create_fingerprint(capturer, target, harmonics)
+            peak_note, peak_intensity, supporters = result
+            
+            if not profile:
+                continue
+            
+            if peak_note in profile.peaks:
+                # prepare to overwrite any existing fingerprint
+            
+                existing = None
+                for i, fingerprint in enumerate(profile.peaks[peak_note]):
+                    note, existing_supporters = fingerprint
                 
-                if note == target:
-                    existing = profile.peaks[peak_note].pop(i)
-                    break
+                    if note == target:
+                        existing = profile.peaks[peak_note].pop(i)
+                        break
             
-            if existing and not options.sure:
-                answer = raw_input('Do you want to overwrite the existing '
-                    'fingerprint? (y/n): ')
-                if not answer.lower().startswith('y'):
-                    raise RuntimeError('Aborted.')
-        
-        if peak_note not in profile.peaks:
-            profile.peaks[peak_note] = []
-        
-        supporter_map = {}
-        for note, intensity, ratio in supporters:
-            supporter_map[note] = ratio
-        
-        profile.peaks[peak_note].append((target, supporter_map))
-        profile.save()
+                if existing and not options.sure:
+                    answer = raw_input('Do you want to overwrite the existing '
+                        'fingerprint? (y/n): ')
+                    if not answer.lower().startswith('y'):
+                        raise RuntimeError('Aborted.')
+            
+            if peak_note not in profile.peaks:
+                profile.peaks[peak_note] = []
+            
+            supporter_map = {}
+            for note, intensity, ratio in supporters:
+                supporter_map[note] = ratio
+            
+            profile.peaks[peak_note].append((target, supporter_map))
     except RuntimeError, e:
         # yeah, this is abuse of exceptions... I don't care
         print e.args[0]
+    else:
+        if profile:
+            profile.save()
     finally:
         capturer.stop()

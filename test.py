@@ -81,7 +81,7 @@ def filter_tests(tests, patterns):
     
     return filtered
 
-def run_tests(tests):
+def run_tests(tests, debug=False):
     """
     Runs all of the tests in the given test dictionary and prints the
     results.
@@ -98,7 +98,7 @@ def run_tests(tests):
         
         with catch_warnings(record=True) as w:
             try:
-                run_test(test)
+                run_test(test, debug=debug)
             except UnheardNoteError, e:
                 unheard = e
             except MissingRecordingError, e:
@@ -155,9 +155,11 @@ if __name__ == '__main__':
     parser = OptionParser('%prog [pattern ...]')
     parser.add_option('-p', '--profile', metavar='NAME',
         help='the instrument profile to use')
+    parser.add_option('-d', '--debug', action='store_true',
+        help='show debugging information')
     parser.add_option('-l', '--live', action='store_true',
         help="don't use recordings; ask for live playing instead")
-    parser.set_defaults(profile='piano', live=False)
+    parser.set_defaults(profile='piano', live=False, debug=False)
     
     options, args = parser.parse_args()
     
@@ -171,4 +173,4 @@ if __name__ == '__main__':
     if len(args) > 0:
         tests = filter_tests(tests, args)
     
-    run_tests(tests)
+    run_tests(tests, options.debug)
