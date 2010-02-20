@@ -91,8 +91,8 @@ class Display(object):
             # import traceback
             # traceback.print_stack()
             # print '--> Looks like the new measure in town is %d.' % present_measure
-            #self.updates.put(present_measure)
-            pass
+            self.updates.put(present_measure)
+            #pass
     
     def check_for_updates(self):
         measure_to_highlight = None
