@@ -16,6 +16,7 @@ from mstand.terminal import color
 
 from threading import Thread, Condition
 from collections import defaultdict
+from pprint import pprint
 
 def create_listener(options):
     filters = [
@@ -30,22 +31,37 @@ def create_listener(options):
         interval=options.interval, filters=filters)
 
 class PeakDelegate(object):
-    def __init__(self, target):
+    def __init__(self, target, harmonics=None):
         self.best = None
         self.target = target
+        self.harmonics = harmonics
     
     def peaked(self, peaking_note, peaks):
         if self.target is not None and peaking_note != self.target:
             return
-        if self.best is None or peaks[0][2] > self.best[0][2]:
+        
+        if self.harmonics:
+            check_peaks = [peak for peak in peaks if peak[0] in self.harmonics]
+            if not peaks:
+                return
+        else:
+            check_peaks = peaks
+        
+        if self.best is None or check_peaks[0][2] > self.best[0][2]:
+            if self.harmonics:
+                while len(peaks) > 0 and peaks[0][0] not in self.harmonics:
+                    peaks.pop(0)
+                if len(peaks) == 0:
+                    return
+            
             self.best = peaks
     
     def show(self):
         for note, index, intensity in self.best:
             print '%3s @ %5.2f' % (note, intensity)
 
-def find_peaks(results, target=None):
-    delegate = PeakDelegate(target)
+def find_peaks(results, target=None, harmonics=None, maximum=None):
+    delegate = PeakDelegate(target, harmonics)
     peak_tracker = PeakTracker(delegate)
     component_tracker = ComponentTracker(peak_tracker.update)
     
@@ -55,8 +71,12 @@ def find_peaks(results, target=None):
     if not delegate.best:
         return None
     
+    best = delegate.best
+    if maximum is not None:
+        best = best[:maximum]
+    
     results = {}
-    for note, index, intensity in delegate.best:
+    for note, index, intensity in best:
         results[note] = intensity
     
     return results
@@ -64,44 +84,107 @@ def find_peaks(results, target=None):
 def create_vector(keys, peaks):
     return [peaks.get(key, 0.0) for key in keys]
 
-def create_fingerprint(capturer, target, harmonics):
+def create_fingerprints(capturer, target, harmonics):
     runs = []
     notes = defaultdict(int)
     
-    first_run = True
-    while len(runs) < 4:
-        color_name = 'purple!' if first_run else 'black!'
-        print color(color_name, '--> Play %s quickly (do not hold the note).',
-            target)
-        first_run = False
-        
-        results = capturer.capture()
-        peaks = find_peaks(results)
-        if not peaks:
-            continue
-        for note, intensity in peaks.iteritems():
-            notes[note] += 1
-        runs.append(peaks)
+    print 'Fingerprinting %s;' % str(target),
+    if harmonics is None:
+        print 'not restricting to harmonics.'
+    else:
+        print 'harmonics: %s' % ', '.join(str(h) for h in harmonics)
     
-    combined = {}
-    for note, count in notes.iteritems():
-        if count >= 3:
+    def get_common(threshold=3):
+        common = set()
+        for note, count in notes.iteritems():
+            if count >= threshold:
+                common.add(note)
+        return common
+    
+    def make_fingerprint(notes, run):
+        return dict((note, run.get(note, 0.0)) for note in notes)
+    
+    def reduce_run(run, max_length=5):
+        return dict([(note, power) for note, power in
+            sorted(run.iteritems(), key=lambda p: -p[1])][:max_length])
+    
+    def make_combined(common_notes):
+        combined = {}
+        for note in common_notes:
             total = 0.0
+            count = 0
             for run in runs:
                 try:
                     total += run[note]
+                    count += 1
+                except KeyError:
+                    continue
+            combined[note] = (total / count)
+        return combined
+    
+    first_run = True
+    while (len(runs) < 4 or len(get_common()) < 5) and len(runs) < 7:
+        color_name = 'purple!' if first_run else 'black!'
+        if len(runs) < 2:
+            style = 'quickly (do not hold the note)'
+        elif len(runs) < 4:
+            style = 'and hold'
+        else:
+            style = 'however you feel best expresses yourself'
+        print color(color_name, '--> Play %s %s.', target, style)
+        first_run = False
+        
+        results = capturer.capture()
+        peaks = find_peaks(results, harmonics=harmonics, maximum=6)
+        if not peaks:
+            continue
+        
+        for note, intensity in peaks.iteritems():
+            notes[note] += 1
+        print '{%s}' % (', '.join('%s: %d' % pair
+            for pair in sorted(notes.iteritems(), key=lambda p: -p[1])))
+        runs.append(peaks)
+    
+    common_notes = get_common()
+    fingerprints = [reduce_run(run) for run in runs]
+    fingerprints.append(make_combined(common_notes))
+    
+    for l in xrange(len(runs), 3, -1):
+        very_common_notes = get_common(l)
+        if len(very_common_notes) >= 3:
+            max_combined = make_combined(very_common_notes)
+            if make_combined != fingerprints[-1]:
+                fingerprints.append(max_combined)
+            break
+    
+    combined = {}
+    strict = {}
+    for note, count in notes.iteritems():
+        if count >= 3:
+            total = 0.0
+            strict_total = 0.0
+            for i, run in enumerate(runs):
+                try:
+                    total += run[note]
+                    if count >= 4:
+                        strict_total += run[note]
+                    fingerprints[i][note] = run[note]
                 except KeyError:
                     continue
             combined[note] = total / count
+        if count >= 4:
+            strict[note] = strict_total / count
     
     keys = []
-    for note, intensity in sorted(combined.iteritems(), key=lambda (n, i): -i):
-        keys.append(note)
-        print '%3s @ %5.2f' % (note, intensity)
+    for fp in (fingerprints + [combined, strict]):
+        print '-' * 30
+        for note, intensity in sorted(fp.iteritems(), key=lambda (n, i): -i):
+            keys.append(note)
+            print '%3s @ %5.2f' % (note, intensity)
     note_vector = create_vector(keys, combined)
     
     for i in xrange(2):
-        print color('green!', '--> Play %s quickly (do not hold the note).',
+        print color('green!', '--> Play %s in some fashion.',
             target)
         results = capturer.capture()
         peaks = find_peaks(results, keys[0])
@@ -112,7 +195,13 @@ def create_fingerprint(capturer, target, harmonics):
             print '%.3f' % cosine_distance(note_vector,
                 create_vector(keys, peaks))
     
-    return keys[0], combined
+    return fingerprints + [combined, strict]
+
+def find_note(notes, target):
+    for i, (note, components) in enumerate(notes):
+        if note == target:
+            return i
+    return -1
 
 if __name__ == '__main__':
     from optparse import OptionParser
@@ -123,14 +212,14 @@ if __name__ == '__main__':
         help='the number of harmonics to examine')
     parser.add_option('-p', '--profile', metavar='NAME',
         help='the profile to which this fingerprint will be added')
-    parser.add_option('-s', '--sure', '--overwrite', dest='sure',
-        action='store_true', help="don't confirm saving new fingerprints")
+    parser.add_option('-r', '--replace', action='store_true',
+        help='replace existing fingerprints')
     parser.add_option('-i', '--interval', metavar='SAMPLES', type='int',
         help='FFT interval')
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
     parser.set_defaults(interval=1024, window_size=4096, harmonics=0,
-        sure=False)
+        replace=True)
     
     options, args = parser.parse_args()
     
@@ -175,35 +264,28 @@ if __name__ == '__main__':
             else:
                 harmonics = None
             
-            result = create_fingerprint(capturer, target, harmonics)
-            if not result:
-                continue
-            peak_note, intensity_map = result
-            
-            if not profile:
+            fingerprints = create_fingerprints(capturer, target, harmonics)
+            if not (fingerprints and profile):
                 continue
             
-            if peak_note in profile.peaks:
-                # prepare to overwrite any existing fingerprint
-                
-                existing = None
-                for i, fingerprint in enumerate(profile.peaks[peak_note]):
-                    note, existing_supporters = fingerprint
-                
-                    if note == target:
-                        existing = profile.peaks[peak_note].pop(i)
-                        break
-                
-                if existing and not options.sure:
-                    answer = raw_input('Do you want to overwrite the existing '
-                        'fingerprint? (y/n): ')
-                    if not answer.lower().startswith('y'):
-                        raise RuntimeError('Aborted.')
+            if options.replace:
+                for peak_note, notes in profile.peaks.iteritems():
+                    while True:
+                        index = find_note(notes, target)
+                        if index < 0:
+                            break
+                        del notes[index]
             
-            if peak_note not in profile.peaks:
-                profile.peaks[peak_note] = []
-            
-            profile.peaks[peak_note].append((target, intensity_map))
+            for fingerprint in fingerprints:
+                if not fingerprint:
+                    continue
+                peak_note = max((pair for pair in fingerprint.iteritems()),
+                    key=lambda (n, i): i)[0]
+                
+                if peak_note not in profile.peaks:
+                    profile.peaks[peak_note] = []
+                
+                profile.peaks[peak_note].append((target, fingerprint))
     except RuntimeError, e:
         # yeah, this is abuse of exceptions... I don't care
         print e.args[0]

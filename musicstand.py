@@ -101,8 +101,6 @@ if __name__ == '__main__':
         help='the name of the matching algorithm to use')
     parser.add_option('-o', dest='algorithm_options', action='append',
         metavar='OPTION[=VALUE]', help='set an algorithm option')
-    parser.add_option('-p', '--profile', metavar='NAME',
-        help='use a profile (for great justice)')
     parser.add_option('-d', '--debug', action='store_true',
         help='show debugging output')
     parser.add_option('-i', '--interval', metavar='SAMPLES', type='int',
@@ -110,7 +108,7 @@ if __name__ == '__main__':
     parser.add_option('-w', '--window-size', metavar='SAMPLES', type='int',
         help='FFT window size')
     parser.set_defaults(algorithm='simple', debug=False, interval=1024,
-        window_size=4096*4, profile=None)
+        window_size=4096*4)
     
     options, args = parser.parse_args()
     
@@ -122,23 +120,10 @@ if __name__ == '__main__':
     except ValueError, e:
         parser.error(e[0])
     
-    if options.profile:
-        profile_name = options.profile
-        if not profile_name.endswith('.phip'):
-            profile_name += '.phip'
-        if not os.path.exists(profile_name):
-            profile_name = os.path.join(os.path.dirname(__file__), 'profiles',
-                profile_name)
-        if not os.path.exists(profile_name):
-            parser.error('the requested profile could not be found')
-        
-        with open(profile_name, 'rt') as stream:
-            profile = read_profile(stream)
-        interpreter = ProfileInterpreter(profile)
-    else:
-        profile = load_profile('piano')
-        interpreter = CombinedInterpreter(profile)
-        print >>sys.stderr, "warning: not using any profile!"
+    profile = load_profile('piano-smoothed')
+    if profile.version != '2.0':
+        parser.error('the combined interpreter needs a v2.0 profile')
+    interpreter = CombinedInterpreter(profile)
     
     # Do some sanity checks
     if not is_power_of_two(options.interval):

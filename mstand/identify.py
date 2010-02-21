@@ -201,12 +201,17 @@ class PeakTracker(object):
         maximum = position + self._delay
         
         peaked_components = []
-        
+        max_intensity = 0.0
         for component in components.itervalues():
-            if not component.peak or component.peak[1] > intensity * 1.05:
+            if not component.peak:
                 continue
+            max_intensity = max(max_intensity, component.peak[1])
             if minimum <= component.peak[0] <= maximum:
                 peaked_components.append((component.note,) + component.peak)
+        
+        # print '%3s, %d, %.2f, %.2f' % (target.note, position, intensity, max_intensity)
+        if intensity < max_intensity * 0.8:
+            return None
         
         peaked_components.sort(key=lambda c: c[2], reverse=True)
         return peaked_components
@@ -222,6 +227,7 @@ class PeakTracker(object):
                     self._delegate.faded(fade_obj)
                     del self._fade_tracked[note]
             elif component.peaked and component.peak[1] >= self._min_intensity:
+                # print component, component.peak
                 self._to_check[component.note] = (component.counter +
                     self._delay)
         
@@ -235,6 +241,8 @@ class PeakTracker(object):
                 del self._to_check[note]
                 if component.peak:
                     peaked = self._find_nearby_peaks(component, components)
+                    if peaked is None:
+                        continue
                     result = self._delegate.peaked(note, peaked)
                     if result is not None:
                         former = self._fade_tracked.get(note)
@@ -263,12 +271,12 @@ class Identifier(object):
     def peaked(self, peak_note, peaks):
         peak_map = dict((note, intensity) for note, offset, intensity in peaks)
         
-        from pprint import pprint
-        if peak_note == Note.parse('C4'):
-            pprint(peaks)
-        note = self._profile.find_match(peak_note, peak_map)
+        # from pprint import pprint
+        # if peak_note == Note.parse('G4'):
+        #     pprint(peaks)
+        note, score = self._profile.find_match(peak_note, peak_map)
         if note is not None:
-            self._callback(self.HEARD, note)
+            self._callback(self.HEARD, note, score)
             return note
     
     def faded(self, note):

@@ -55,18 +55,21 @@ class Profile(object):
             write_profile(self, stream)
         self.path = path
     
-    def find_match(self, peaked_note, peaks, minimum_match=0.85,
-                   intensity_cut=0.45):
+    def find_match(self, peaked_note, peaks, minimum_match=0.89,
+                   intensity_cut=0.15):
         try:
             notes = self.peaks[peaked_note]
         except KeyError:
-            return None
+            return None, -1
         
         def create_vector(keys, peaks):
             return [peaks.get(key, 0.0) for key in keys]
         
         best_note = None
         best_match = -1
+        
+        # if peaked_note == Note.parse('C#3'):
+        #     print sorted(peaks.iteritems(), key=lambda (n, i): -i)
         
         for note, note_peaks in notes:
             if peaks[peaked_note] < intensity_cut * note_peaks[peaked_note]:
@@ -76,12 +79,14 @@ class Profile(object):
             heard = create_vector(keys, peaks)
             fingerprint = create_vector(keys, note_peaks)
             similarity = cosine_distance(heard, fingerprint)
+            # if peaked_note == Note.parse('C#3'):
+            #     print note, similarity
             
             if similarity >= max(minimum_match, best_match):
                 best_match = similarity
                 best_note = note
         
-        return best_note
+        return best_note, best_match
     
     def __repr__(self):
         return '%s(%r, %r, %r)' % (type(self).__name__, self.name, self.peaks,

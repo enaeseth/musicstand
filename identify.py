@@ -88,9 +88,12 @@ if __name__ == '__main__':
     def print_match(note, distance):
         print color('red!', 'Found %s (distance: %.3f)' % (note, distance))
     
-    def print_result(action, note):
+    def print_result(action, note, score=None):
         color_name = 'green!' if action == '+' else 'red!'
-        print color(color_name, str(note))
+        if score:
+            print color(color_name, '%3s (%.3f)', note, score)
+        else:
+            print color(color_name, '%3s', note)
     
     if options.track:
         # just track the frequency components visually; do not ID notes
