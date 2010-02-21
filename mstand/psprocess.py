@@ -47,7 +47,7 @@ def parse_postscript(filename):
                     pos_y = float(split_position[1])
                     if pos_y < 0:
                         pos_y *= -1
-                        
+                    
                     location = (pos_x, pos_y, current_line)
                     
                     # Special case for first line on first page - it starts slightly
@@ -59,7 +59,6 @@ def parse_postscript(filename):
                        
                     # Case where we've just started a new line
                     elif len(temp_bar_lines) == 0: 
-                        print pos_x - all_bar_lines[-1][0]
                         first_bar = (other_lines_start,location[1], current_line)
                         temp_bar_lines.append(first_bar)
                         temp_bar_lines.append(location)
@@ -69,9 +68,9 @@ def parse_postscript(filename):
                     # the list. If it's on a new line, sort the old line, add it to
                     # the overall list, blank the list, and start over
                     else:
-                        if pos_x - temp_bar_lines[0][0] < 20:
+                        if pos_x - temp_bar_lines[0][0] < 10:
                             pass
-                        elif location[1] == temp_bar_lines[0][1]: 
+                        if location[1] == temp_bar_lines[0][1]: 
                             temp_bar_lines.append(location)
                         else:
                             temp_bar_lines.sort()
@@ -119,7 +118,20 @@ def parse_postscript(filename):
     for item in temp_bar_lines:
         all_bar_lines.append(item)
     num_bars += (len(temp_bar_lines)-1)
-
+    
+    # Find double bar lines and delete one
+    to_delete = []
+    for i in range(len(all_bar_lines)-1):
+        if all_bar_lines[i][1] == all_bar_lines[i+1][1]:
+            if (all_bar_lines[i+1][0] - all_bar_lines[i][0]) < 1:
+            	print all_bar_lines[i][2]
+                to_delete.append(i)
+    
+    to_delete.reverse()
+    for item in to_delete:
+        del all_bar_lines[item]
+        
+    
     # Convert from PostScript units to percentage-of-page
     converted_bar_lines,bar_line_positions = \
         convert_units(all_bar_lines,PAGE_HEIGHT,PAGE_WIDTH,STAFF_HEIGHT)
