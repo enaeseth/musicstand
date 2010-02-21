@@ -1,11 +1,27 @@
+'''
+psprocess.py
+
+Used for parsing postscript files. Looks through a postscript file and finds
+the positions on the page where bar lines are drawn. Uses these to determine 
+the graphical locations of where "measures" are, and returns those. Also
+returns relevant info about the postscript file.
+
+Makes several assumptions, which may be dangerous:
+1) Lines will always start a specific indentation into the page (and the
+first line of the first page will be indented farther than the rest).
+2) The bar lines themselves will always lie within a specific range
+of thicknesses.
+
+Author: farleyb
+'''
+
 import re
-
-## POSSIBLE CONVERSION RATE: 1 PS point = 1.333 pixels
-## (according to http://www.unitconversion.org/typography/postscript-points-to-pixels-x-conversion.html)
-
 
 
 def parse_postscript(filename):
+    '''This is where stuff happens. Finds lines which contain draw_round_box,
+    finds the (x,y) coordinates of these boxes, and from this info creates a list
+    of where the measures are on the page and what line they correspond to.'''
     # Some important constants we'll find/already know
     PAGE_HEIGHT = 0
     PAGE_WIDTH = 0
@@ -86,7 +102,9 @@ def parse_postscript(filename):
                             temp_bar_lines.append(location)
 
             except:
-                print "houston we have a problem"
+                # Catch casting to float error, which will occur when
+                # we find the /draw-round-box definition line
+                pass
             
         # Grab global variables page height and width                
         elif "/page-height" in lines[i]:
@@ -124,7 +142,7 @@ def parse_postscript(filename):
     for i in range(len(all_bar_lines)-1):
         if all_bar_lines[i][1] == all_bar_lines[i+1][1]:
             if (all_bar_lines[i+1][0] - all_bar_lines[i][0]) < 1:
-            	print all_bar_lines[i][2]
+                print all_bar_lines[i][2]
                 to_delete.append(i)
     
     to_delete.reverse()
@@ -135,16 +153,14 @@ def parse_postscript(filename):
     # Convert from PostScript units to percentage-of-page
     converted_bar_lines,bar_line_positions = \
         convert_units(all_bar_lines,PAGE_HEIGHT,PAGE_WIDTH,STAFF_HEIGHT)
-            
-    #print bar_line_positions
+
+    
     postscript_info.append(STAFF_HEIGHT/PAGE_HEIGHT)
     postscript_info.append(page_breaks)
     postscript_info.append(bar_line_positions)
 
     measures = barlines_to_measures(converted_bar_lines)
-    
-    #print page_breaks
-    
+        
     return measures, postscript_info
 
 def convert_units(all_bar_lines, PAGE_HEIGHT, PAGE_WIDTH, STAFF_HEIGHT):
@@ -174,7 +190,7 @@ def convert_units(all_bar_lines, PAGE_HEIGHT, PAGE_WIDTH, STAFF_HEIGHT):
             
     # If any of the PS variables are still zero, we have a problem. Exit.
     except ZeroDivisionError, e:
-        sys.exit(1)
+        return None
 
     bar_line_positions.append(temp_line_positions)
     return all_bar_lines, bar_line_positions

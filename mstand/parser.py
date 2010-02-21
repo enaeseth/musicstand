@@ -92,6 +92,8 @@ def parse_file(filename):
     list_of_keys.sort()
     for i in list_of_keys:
         big_note_array.append(tuple(notes_by_start_time[i]))
+        
+
     return big_note_array
 
 if __name__ == '__main__':
