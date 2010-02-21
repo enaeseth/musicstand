@@ -120,7 +120,7 @@ if __name__ == '__main__':
     except ValueError, e:
         parser.error(e[0])
     
-    profile = load_profile('piano-smoothed')
+    profile = load_profile('piano-averaged')
     if profile.version != '2.0':
         parser.error('the combined interpreter needs a v2.0 profile')
     interpreter = CombinedInterpreter(profile)
