@@ -111,7 +111,6 @@ class Display(object):
         except QueueEmpty:
             pass
         if measure_to_highlight is not None:
-            print 'MEASURE TO HIGHLIGHT IS', measure_to_highlight
             self.highlight_measure(measure_to_highlight)
         
         self.parent.after(50, self.check_for_updates)
@@ -196,7 +195,9 @@ class Display(object):
         self.measure_percents, self.ps_info = \
             psprocess.parse_postscript(ps_file)
         self.staff_height = self.ps_info[0]
-        self.transition_measures = self.ps_info[1]
+        self.transition_measures = self.ps_info[1] if len(self.ps_info[1]) > 0 \
+            else [float('infinity')]
+        print 'made my transition measures', self.transition_measures
         self.transition_measure_local = self.transition_measures[:]
         self.line_percents = self.ps_info[2]
         self.last_line_on_page = find_last_lines(self.transition_measures, \
@@ -538,10 +539,10 @@ class Display(object):
                     self.staff_height)*im_height)
                 extra_x = int((x_end-x_start)*.4)
                 extra_y = int(self.staff_height*im_height)
-                self.transparent = self.transparent.resize((x_end - x_start + \
+                transparent = self.transparent.resize((x_end - x_start + \
                     (2*extra_x), y_end - y_start + (2*extra_y)))
                 next_image.paste(self.color, (x_start-extra_x, y_start-extra_y,\
-                    x_end+extra_x, y_end+extra_y), self.transparent)
+                    x_end+extra_x, y_end+extra_y), transparent)
                 self.cur_tkimage = ImageTk.PhotoImage(next_image)
                 self.changing_page = True
                 self.cur_image.destroy()
