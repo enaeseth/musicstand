@@ -62,11 +62,9 @@ def parse_file(filename):
     big_note_array = []
     the_file = open(filename,'r')
     for line in the_file:
-        # print line
         line_list = line.split()
         if len(line_list) > 1 and line_list[1] == "TimeSig":
             time_sig = [int(line_list[2].split('/')[0]), int(line_list[2].split('/')[1])]
-            ppq = ppq*4/time_sig[1]
 
         elif len(line_list) > 1 and line_list[0] == "MFile":
             ppq = int(line_list[3])
@@ -83,10 +81,10 @@ def parse_file(filename):
                     note = notes_by_start_time.get(start_time)
                     note[3].append(add_multiple(pitch))
             else:
-                new_note = Note(((start_time/ppq)/time_sig[0])+1, (float(end_time-start_time)/ppq)/time_sig[1], ((float(start_time)/ppq))%time_sig[1]/time_sig[1])
+                new_note = Note(start_time/((ppq*4*time_sig[0])/time_sig[1])+1, (float(end_time-start_time)/ppq)/time_sig[1], (float(start_time)%((ppq*4*time_sig[0])/time_sig[1]))/((ppq*4*time_sig[0])/time_sig[1]))
                 new_note.pitch_to_note(pitch)
                 new_note.note_to_dict(notes_by_start_time, start_time)
-                    
+                
     list_of_keys = notes_by_start_time.keys()
     list_of_keys.sort()
     for i in list_of_keys:
