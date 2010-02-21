@@ -197,7 +197,6 @@ class Display(object):
         self.staff_height = self.ps_info[0]
         self.transition_measures = self.ps_info[1] if len(self.ps_info[1]) > 0 \
             else [float('infinity')]
-        print 'made my transition measures', self.transition_measures
         self.transition_measure_local = self.transition_measures[:]
         self.line_percents = self.ps_info[2]
         self.last_line_on_page = find_last_lines(self.transition_measures, \
@@ -494,7 +493,7 @@ class Display(object):
             new_page = False
         diff = abs(cur_image.size[1]-next_image.size[1])
         while self.changing_page:
-            transition = Image.new(next_image.mode, next_image.size, 'Green')
+            transition = Image.new(next_image.mode, next_image.size, 'White')
             new_region = next_image.crop((0, new_top, width, new_top+height+diff))
             old_region = cur_image.crop((0, height, width, \
                 cur_image.size[1]))
