@@ -52,6 +52,7 @@ class Display(object):
         self.lines_per_page = 2
         self.playing = False
         self.cur_measure = 0
+        self.last_update_measure = 0
         self.cur_page_index = 0
         self.cur_zoom_index = 0
         self.zoomed = False
@@ -62,7 +63,9 @@ class Display(object):
         self.cur_line = 0
         self.num_measures_before_transition = 0
         self.transition_measures = []
+        self.transition_measures_local = []
         self.transition_measures_zoom = []
+        self.transition_measures_zoom_local = []
         self.speed = 5
         self.transition = self.next_page_voverlay
         self.changing_page = False
@@ -85,16 +88,18 @@ class Display(object):
             self.options_window.destroy()
         except:
             pass
+        self.zoomed = False
         self.welcome_frame = self.init_welcome(self.parent)
     
     def update_position(self, matcher):
         interval = matcher.current_interval
         present_measure = interval.measure if interval is not None else 0
         
-        if self.cur_measure != present_measure:
+        if self.last_update_measure != present_measure:
             # import traceback
             # traceback.print_stack()
             # print '--> Looks like the new measure in town is %d.' % present_measure
+            self.last_update_measure = present_measure
             self.updates.put(present_measure)
             #pass
     
@@ -106,6 +111,7 @@ class Display(object):
         except QueueEmpty:
             pass
         if measure_to_highlight is not None:
+            print 'MEASURE TO HIGHLIGHT IS', measure_to_highlight
             self.highlight_measure(measure_to_highlight)
         
         self.parent.after(50, self.check_for_updates)
@@ -191,6 +197,7 @@ class Display(object):
             psprocess.parse_postscript(ps_file)
         self.staff_height = self.ps_info[0]
         self.transition_measures = self.ps_info[1]
+        self.transition_measure_local = self.transition_measures[:]
         self.line_percents = self.ps_info[2]
         self.last_line_on_page = find_last_lines(self.transition_measures, \
             self.measure_percents, self.line_percents)
@@ -212,6 +219,7 @@ class Display(object):
             self.cur_tkimage = ImageTk.PhotoImage(self.image_dir[0])
             self.cur_image = Label(self.parent, image = self.cur_tkimage)
         self.cur_image.grid()
+        self.reset_song_positions()
         self.highlight_measure(0)
     
     def load_images(self, path):
@@ -249,9 +257,8 @@ class Display(object):
         #this stuff is so inefficient now, I really should fix it....
         self.transition_measures_zoom = []
         self.zoom_measures = []
-        
-        final_pages = []
         self.cur_line = 0
+        final_pages = []
         for j in range(len(images)):
             last_line = self.last_line_on_page[j]
             max_size = -1
@@ -352,6 +359,7 @@ class Display(object):
             final_pages.append(pages)
             self.cur_line = last_line + 1
         self.cur_line = 0
+        self.transition_measures_zoom_local = self.transition_measures_zoom[:]
         self.image_dir_zoom = final_pages
         
     def next_page_voverlay(self):
@@ -516,10 +524,11 @@ class Display(object):
                 self.highlight_next_measure_zoomed()
             else:
                 print '--> Going to measure %d.' % self.cur_measure
-                if self.cur_measure + self.num_measures_before_transition in \
-                self.transition_measures:
+                if self.cur_measure + self.num_measures_before_transition > \
+                self.transition_measures_local[0]:
                     self.transition()
                     self.cur_measure += self.num_measures_before_transition
+                    self.transition_measures_local.pop(0)
                 next_image = self.image_dir[self.cur_page_index].copy()
                 im_width, im_height = next_image.size
                 x_start = int(self.measure_percents[self.cur_measure][0]*im_width)
@@ -543,10 +552,11 @@ class Display(object):
     
     def highlight_next_measure_zoomed(self):
         print '--> Going to measure %d.' % self.cur_measure
-        if self.cur_measure + self.num_measures_before_transition in \
-        self.transition_measures_zoom:
+        if self.cur_measure + self.num_measures_before_transition > \
+        self.transition_measures_zoom_local[0]:
             self.transition()
             self.cur_measure += self.num_measures_before_transition + 1
+            self.transition_measures_zoom_local.pop(0)
         next_image = self.image_dir_zoom[self.cur_page_index][self.cur_zoom_index].copy()
         im_width = next_image.size[0]
         im_height = next_image.size[1]
@@ -592,8 +602,11 @@ class Display(object):
     def reset_song_positions(self):
         self.cur_line = 0
         self.cur_measure = 0
+        self.last_update_measure = 0
         self.cur_page_index = 0
         self.cur_zoom_index = 0
+        self.transition_measures_local = self.transition_measures[:]
+        self.transition_measures_zoom_local = self.transition_measures_zoom[:]
         
     def reset_sheetmusic(self):
         self.load_sheetmusic()
