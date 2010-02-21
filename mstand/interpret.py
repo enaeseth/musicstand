@@ -162,7 +162,7 @@ class CombinedInterpreter(Interpreter):
             if percent_heard >= 0.5:
                 matched_notes.append(expected_note)
         if set(current_notes).issubset(set(matched_notes)):
-            print "JUST FOUND", current_notes, "MOVING FORWARD NOW."      
+            print "MOVING FORWARD PAST", matched_notes    
         return set(current_notes).issubset(set(matched_notes))
                 
                 

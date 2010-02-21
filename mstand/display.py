@@ -111,6 +111,7 @@ class Display(object):
         except QueueEmpty:
             pass
         if measure_to_highlight is not None:
+            print 'highlighting measure', measure_to_highlight
             self.highlight_measure(measure_to_highlight)
         
         self.parent.after(50, self.check_for_updates)

@@ -57,9 +57,9 @@ class SimpleAlgorithm(Algorithm):
             if i > 1 and len(expected) == 0:
             	continue
             
-            self.debug('%02d: [%s] =?= [%s]', position,
-                ', '.join(unparse_note(*note) for note in debug_new_notes),
-                ', '.join(unparse_note(*note) for note in expected))
+#            self.debug('%02d: [%s] =?= [%s]', position,
+#                ', '.join(unparse_note(*note) for note in debug_new_notes),
+#                ', '.join(unparse_note(*note) for note in expected))
             
             if self.matcher.interpreter.looks_like(expected):
                 if i > 0:
@@ -73,7 +73,7 @@ class SimpleAlgorithm(Algorithm):
             if new_notes != self.last_notes and len(new_notes) > 0:
                 self.miss_count += 1
         
-        if self.miss_count != old_miss_count:
-            self.debug('miss count is now %d' % self.miss_count)
+#        if self.miss_count != old_miss_count:
+#            self.debug('miss count is now %d' % self.miss_count)
         self.last_notes = new_notes
         return self.current_location
