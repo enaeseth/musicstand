@@ -557,8 +557,8 @@ class Display(object):
                 self.highlight_next_measure_zoomed()
             else:
                 print '--> Going to measure %d.' % self.cur_measure
-                if self.cur_measure + self.num_measures_before_transition >= \
-                self.transition_measures_local[0]:
+                if self.cur_measure + self.num_measures_before_transition > \
+                self.transition_measures_local[0] :
                     self.transition()
                     self.cur_measure += self.num_measures_before_transition
                     self.transition_measures_local.pop(0)
@@ -585,10 +585,10 @@ class Display(object):
     
     def highlight_next_measure_zoomed(self):
         print '--> Going to measure %d.' % self.cur_measure
-        if self.cur_measure + self.num_measures_before_transition >= \
+        if self.cur_measure + self.num_measures_before_transition > \
         self.transition_measures_zoom_local[0]:
             self.transition()
-            self.cur_measure += self.num_measures_before_transition + 1
+            self.cur_measure += self.num_measures_before_transition
             self.transition_measures_zoom_local.pop(0)
         next_image = self.image_dir_zoom[self.cur_page_index][self.cur_zoom_index].copy()
         im_width = next_image.size[0]
