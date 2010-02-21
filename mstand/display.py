@@ -132,7 +132,12 @@ class Display(object):
             text = music_list.get(index)
             self.load_music(text)
         
+        #def set_sel(event):
+            #index = music_list.curselection()[0]
+            #print music_list.get(index)
+        
         music_list.bind('<Double-Button-1>', get_sel)
+        #music_list.bind('<Button-1>',set_sel)
         new_song_entry = Entry(container, fg="Red")
         new_song =  Label(container, text = "New Song")
         lilypond_entry = Entry(container, fg="Red")
@@ -158,20 +163,48 @@ class Display(object):
         def make_lilypond():
             MakeLilyPond(self.parent,self)
         
+        def play_midi():
+            index = music_list.curselection()[0]
+            song_name = music_list.get(index)
+
+            folder_name = 'songs/'
+            for word in song_name.lower().split():
+                folder_name += word
+            try:
+                dir_list = os.listdir(folder_name)
+            except:
+                print 'Song not loaded into program currently.'
+                return None
+                
+            re_image_types = r'.*\.midi$'
+            pattern = re.compile(re_image_types, re.IGNORECASE)
+            dir_list = filter(pattern.search, dir_list)
+            
+            try:
+                path = folder_name + "/" + dir_list[0]
+                os.system("open %s" % path)
+            except IndexError:
+                print "No MIDI files in that directory."    
+            
+            
         load_button = Button(container, command = get_file_entry, text = "Load")
+        
+        play_midi_button = Button(container,command = play_midi,text="Listen")
         
         create_button = Button(container, command = make_lilypond, text="Make")
         
         container.grid()
         welcome.grid(columnspan=2)
         current_songs.grid(sticky=S+W)
-        music_list.grid(column=0, rowspan=5, sticky=W)
+        music_list.grid(column=0, rowspan=6, sticky=W)
         new_song.grid(column=1, row=1, sticky=S)
         new_song_entry.grid(row=2, column=1, sticky=N)
         lilypond_file.grid(row=3, column=1, sticky=S)
         lilypond_entry.grid(row=4, column=1, sticky=N)
         load_button.grid(row=5, column=1, sticky=N)
-        create_button.grid(row=6,column=1,sticky=N)
+        create_button.grid(row=7, column=1, sticky=N)
+        play_midi_button.grid(row=6, column=1, sticky=N)
+        
         
         return container
 
@@ -235,6 +268,7 @@ class Display(object):
         dir_list.sort()
         dir_list = [os.path.join(path, filename) for filename in dir_list]
         image_list = [Image.open(image) for image in dir_list]
+        print len(image_list)
         self.transparent = Image.open(os.path.join(os.path.dirname(__file__),
             "transparent1.png"))
 
@@ -259,7 +293,9 @@ class Display(object):
         self.zoom_measures = []
         self.cur_line = 0
         final_pages = []
+        print self.last_line_on_page
         for j in range(len(images)):
+            print j
             last_line = self.last_line_on_page[j]
             max_size = -1
             line_percents = self.line_percents[j]

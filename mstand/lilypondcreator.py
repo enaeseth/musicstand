@@ -73,7 +73,7 @@ class MakeLilyPond:
 		## This stuff goes in the main buttons frame
 		############################################
 		self.main_buttons_frame = Frame(self.top_frame)
-		self.main_buttons_frame.grid(column=2,row=3)
+		self.main_buttons_frame.grid(column=20,row=3)
 		
 		self.quit_button = Button(self.main_buttons_frame, \
 			command = self.quit,text="Quit", \

@@ -24,7 +24,7 @@ def parse_postscript(filename):
     readfile = psfile.read()
     lines = re.split("\n",readfile)
     psfile.close()
-    
+
     staff_height_found = False
     
     # Find bar lines
@@ -35,51 +35,60 @@ def parse_postscript(filename):
     for i in range(len(lines)):
         if "draw_round_box" in lines[i]:
             split_line = re.split("\s",lines[i])
-            if split_line[0] == '0.1900':
-                if not staff_height_found:
-                    STAFF_HEIGHT = float(split_line[1])
-                    staff_height_found = True
-                split_position = re.split("\s",lines[i-1])
-                pos_x = float(split_position[0])
-                pos_y = float(split_position[1])
-                if pos_y < 0:
-                    pos_y *= -1
+            try:
+                val = float(split_line[0])
+                
+                if val < .25 and val > .18:
+                    if not staff_height_found:
+                        STAFF_HEIGHT = float(split_line[1])
+                        staff_height_found = True
+                    split_position = re.split("\s",lines[i-1])
+                    pos_x = float(split_position[0])
+                    pos_y = float(split_position[1])
+                    if pos_y < 0:
+                        pos_y *= -1
+                        
+                    location = (pos_x, pos_y, current_line)
                     
-                location = (pos_x, pos_y, current_line)
-                
-                # Special case for first line on first page - it starts slightly
-                # indented, so have to compensate for that
-                if len(temp_bar_lines) == 0 and page == 0:
-                    first_bar = (first_line_start,location[1], current_line)
-                    temp_bar_lines.append(first_bar)
-                    temp_bar_lines.append(location)
-                   
-                # Case where we've just started a new line
-                elif len(temp_bar_lines) == 0:
-                    first_bar = (other_lines_start,location[1], current_line)
-                    temp_bar_lines.append(first_bar)
-                    temp_bar_lines.append(location)
-                
-
-                # We were already on a line - if this bar is on the same line, add it to
-                # the list. If it's on a new line, sort the old line, add it to
-                # the overall list, blank the list, and start over
-                else:
-                    if location[1] == temp_bar_lines[0][1]: 
-                        temp_bar_lines.append(location)
-                    else:
-                        temp_bar_lines.sort()
-                        for item in temp_bar_lines:
-                            all_bar_lines.append(item)
-                        num_bars += (len(temp_bar_lines) - 1)
-                        #print len(temp_bar_lines),num_bars
-                        temp_bar_lines = []
-                        current_line += 1
-                        location = (location[0],location[1],current_line)
-                        first_bar = (other_lines_start,location[1],current_line)
+                    # Special case for first line on first page - it starts slightly
+                    # indented, so have to compensate for that
+                    if len(temp_bar_lines) == 0 and page == 0:
+                        first_bar = (first_line_start,location[1], current_line)
                         temp_bar_lines.append(first_bar)
                         temp_bar_lines.append(location)
+                       
+                    # Case where we've just started a new line
+                    elif len(temp_bar_lines) == 0: 
+                        print pos_x - all_bar_lines[-1][0]
+                        first_bar = (other_lines_start,location[1], current_line)
+                        temp_bar_lines.append(first_bar)
+                        temp_bar_lines.append(location)
+                    
+    
+                    # We were already on a line - if this bar is on the same line, add it to
+                    # the list. If it's on a new line, sort the old line, add it to
+                    # the overall list, blank the list, and start over
+                    else:
+                        if pos_x - temp_bar_lines[0][0] < 20:
+                            pass
+                        elif location[1] == temp_bar_lines[0][1]: 
+                            temp_bar_lines.append(location)
+                        else:
+                            temp_bar_lines.sort()
+                            for item in temp_bar_lines:
+                                all_bar_lines.append(item)
+                            num_bars += (len(temp_bar_lines) - 1)
+                            #print len(temp_bar_lines),num_bars
+                            temp_bar_lines = []
+                            current_line += 1
+                            location = (location[0],location[1],current_line)
+                            first_bar = (other_lines_start,location[1],current_line)
+                            temp_bar_lines.append(first_bar)
+                            temp_bar_lines.append(location)
 
+            except:
+                print "houston we have a problem"
+            
         # Grab global variables page height and width                
         elif "/page-height" in lines[i]:
             split_line = re.split("\s",lines[i])
@@ -91,7 +100,7 @@ def parse_postscript(filename):
         # Check if there is a page break
         elif "%%Page:" in lines[i]:
         
-        	# Only do this for pages after the first
+            # Only do this for pages after the first
             if page > -1:
                 temp_bar_lines.sort()
                 for item in temp_bar_lines:
@@ -172,4 +181,6 @@ def barlines_to_measures(bar_lines):
     return measures
 
 if __name__ == '__main__':
-    x, y = parse_postscript("march.ps")
+    x, y = parse_postscript("pathetiquerh.ps")
+    #print x
+    #print y
