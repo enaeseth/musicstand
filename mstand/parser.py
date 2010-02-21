@@ -57,6 +57,7 @@ def parse_file(filename):
     notes = []
     ppq = 0
     time_sig = 0
+    ppq_per_measure = 0
     on_note_list = {}
     notes_by_start_time = {}
     big_note_array = []
@@ -65,6 +66,7 @@ def parse_file(filename):
         line_list = line.split()
         if len(line_list) > 1 and line_list[1] == "TimeSig":
             time_sig = [int(line_list[2].split('/')[0]), int(line_list[2].split('/')[1])]
+            ppq_per_measure = (ppq*4*time_sig[0])/time_sig[1]
 
         elif len(line_list) > 1 and line_list[0] == "MFile":
             ppq = int(line_list[3])
@@ -81,7 +83,8 @@ def parse_file(filename):
                     note = notes_by_start_time.get(start_time)
                     note[3].append(add_multiple(pitch))
             else:
-                new_note = Note(start_time/((ppq*4*time_sig[0])/time_sig[1])+1, (float(end_time-start_time)/ppq)/time_sig[1], (float(start_time)%((ppq*4*time_sig[0])/time_sig[1]))/((ppq*4*time_sig[0])/time_sig[1]))
+                #here there be dragons and super sketchy math
+                new_note = Note((start_time/ppq_per_measure)+1, (float(end_time-start_time)/ppq_per_measure), (float(start_time)%ppq_per_measure)/ppq_per_measure)
                 new_note.pitch_to_note(pitch)
                 new_note.note_to_dict(notes_by_start_time, start_time)
                 
