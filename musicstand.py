@@ -136,9 +136,8 @@ if __name__ == '__main__':
             profile = read_profile(stream)
         interpreter = ProfileInterpreter(profile)
     else:
-        interpreter = OvertoneInterpreter()
-        # profile = load_profile('piano')
-        # interpreter = CombinedInterpreter(profile)
+        profile = load_profile('piano')
+        interpreter = CombinedInterpreter(profile)
         print >>sys.stderr, "warning: not using any profile!"
     
     # Do some sanity checks
