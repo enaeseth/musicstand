@@ -106,12 +106,26 @@ class OvertoneInterpreter(Interpreter):
         for expected_note in current_notes:
             num_overtones = 0
             for heard_note in self.heard_notes:
+                if (float(note_to_freq(*heard_note))/note_to_freq(*expected_note) - 
+                    math.floor(note_to_freq(*heard_note)/note_to_freq(*expected_note)) < 0.025):
+                    print "heard note", heard_note 
+                    print "NTF heard note", float(note_to_freq(*heard_note))
+                    print "expected note", expected_note
+                    print "NTF expected note", note_to_freq(*expected_note)
+                    print "_________________________________________"
                 if expected_note == heard_note:
                     matched_notes.append(expected_note)
-                elif (float(note_to_freq(*heard_note))/note_to_freq(*expected_note) == 
-                    math.floor(note_to_freq(*heard_note)/note_to_freq(*expected_note))):
+                if (expected_note == (2, 'G', None) and heard_note == (5, 'D', None) or 
+                    expected_note == (4, 'G', None) and heard_note == (5, 'G', None) or
+                    expected_note == (5, 'E', None) and heard_note == (6, 'E', None)):
+                    matched_notes.append(expected_note)
+                elif (float(note_to_freq(*heard_note))/note_to_freq(*expected_note) - 
+                    math.floor(note_to_freq(*heard_note)/note_to_freq(*expected_note)) < 0.02):
+                    print expected_note, heard_note
                     num_overtones += 1
-            if num_overtones > 2:
+            print "LISTEN UP THIS IS THE NUMBER OF OVERTONES:", num_overtones
+            print "-------------------------------------------------------"
+            if expected_note[0] < 3 and num_overtones > 0:
                 matched_notes.append(expected_note)
         return set(current_notes).issubset(set(matched_notes))
         
@@ -129,7 +143,7 @@ class CombinedInterpreter(Interpreter):
         It will return True if, for every expected note, at least half of its
         profiled notes are present.
         """
-        
+     
         note_profiles = {}
         for key in sorted(self.profile.peaks.keys()):
             for other_notes in self.profile.peaks[key]:
@@ -142,15 +156,27 @@ class CombinedInterpreter(Interpreter):
         
         matched_notes = []
         for expected_note in current_notes:
+            
+            num_overtones = 0 # debugging
+            fundamental = "no fundamental"
+            
             pnotes = note_profiles[expected_note]
             num_pnotes = 0
             for heard_note in self.heard_notes:
+
+                if expected_note == heard_note: # more debugging
+                    fundamental = "FUNDAMENTAL!"
+                if (float(note_to_freq(*heard_note))/note_to_freq(*expected_note) == 
+                    math.floor(note_to_freq(*heard_note)/note_to_freq(*expected_note))):
+                    num_overtones += 1
+                    print "OVERTONES"
+            
                 if heard_note in pnotes:
                     num_pnotes += 1
-            print expected_note, num_pnotes, len(pnotes)
+            print expected_note, fundamental, num_overtones
             percent_heard = float(num_pnotes) / len(pnotes)
             if percent_heard >= 0.5:
-                print expected_note
+#                print expected_note
                 matched_notes.append(expected_note)
         return set(current_notes).issubset(set(matched_notes))
                 

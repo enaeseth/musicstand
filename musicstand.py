@@ -33,7 +33,7 @@ def main(algorithm, window_size, interval, interpreter, debug=False):
         audio.CutoffFilter(4200.0),
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
-        MinimumIntensityFilter(20.0),
+        MinimumIntensityFilter(25.0),
         SmoothFilter(4, 3)
     ]
     

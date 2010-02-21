@@ -60,6 +60,7 @@ if __name__ == '__main__':
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(options.min_intensity)
+
     ]
     
     if options.decibels:
