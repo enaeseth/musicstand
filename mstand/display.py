@@ -268,7 +268,6 @@ class Display(object):
         dir_list.sort()
         dir_list = [os.path.join(path, filename) for filename in dir_list]
         image_list = [Image.open(image) for image in dir_list]
-        print len(image_list)
         self.transparent = Image.open(os.path.join(os.path.dirname(__file__),
             "transparent1.png"))
 
@@ -293,9 +292,7 @@ class Display(object):
         self.zoom_measures = []
         self.cur_line = 0
         final_pages = []
-        print self.last_line_on_page
         for j in range(len(images)):
-            print j
             last_line = self.last_line_on_page[j]
             max_size = -1
             line_percents = self.line_percents[j]
@@ -560,7 +557,7 @@ class Display(object):
                 self.highlight_next_measure_zoomed()
             else:
                 print '--> Going to measure %d.' % self.cur_measure
-                if self.cur_measure + self.num_measures_before_transition > \
+                if self.cur_measure + self.num_measures_before_transition >= \
                 self.transition_measures_local[0]:
                     self.transition()
                     self.cur_measure += self.num_measures_before_transition
@@ -588,7 +585,7 @@ class Display(object):
     
     def highlight_next_measure_zoomed(self):
         print '--> Going to measure %d.' % self.cur_measure
-        if self.cur_measure + self.num_measures_before_transition > \
+        if self.cur_measure + self.num_measures_before_transition >= \
         self.transition_measures_zoom_local[0]:
             self.transition()
             self.cur_measure += self.num_measures_before_transition + 1
