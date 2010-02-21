@@ -88,16 +88,21 @@ if __name__ == '__main__':
     def print_match(note, distance):
         print color('red!', 'Found %s (distance: %.3f)' % (note, distance))
     
+    def print_result(action, note):
+        color_name = 'green!' if action == '+' else 'red!'
+        print color(color_name, str(note))
+    
     if options.track:
         # just track the frequency components visually; do not ID notes
         callback = show_components
     else:
         # full monty: identify the notes being played
-        detector = Detector(print_match, profile, debug=options.debug,
+        detector = Identifier(print_result, profile, debug=options.debug,
             debug_peaks=options.peaks)
-        callback = detector.update
+        peak_tracker = PeakTracker(detector)
+        callback = peak_tracker.update
     
-    tracker = Tracker(callback)
+    tracker = ComponentTracker(callback)
     
     if options.track:
         # print note headings

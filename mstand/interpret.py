@@ -131,10 +131,10 @@ class CombinedInterpreter(Interpreter):
     def __init__(self, profile):
         super(CombinedInterpreter, self).__init__()
         self.profile = profile
-
+    
     def looks_like(self, current_notes):
         """
-        The matcher should call this. 
+        The matcher should call this.
         It will return True if, for every expected note, at least half of its
         profiled notes are present.
         """
@@ -143,7 +143,7 @@ class CombinedInterpreter(Interpreter):
         for key in sorted(self.profile.peaks.keys()):
             for other_notes in self.profile.peaks[key]:
                 if other_notes[0] not in note_profiles:
-                    note_profiles[other_notes[0]] = set()          
+                    note_profiles[other_notes[0]] = set()
                 for smaller_key in sorted(other_notes[1]):
                     if other_notes[1][smaller_key] > .5:
                         note_profiles[other_notes[0]].add(smaller_key)
@@ -164,7 +164,3 @@ class CombinedInterpreter(Interpreter):
         if set(current_notes).issubset(set(matched_notes)):
             print "MOVING FORWARD PAST", matched_notes    
         return set(current_notes).issubset(set(matched_notes))
-                
-                
-                
-                

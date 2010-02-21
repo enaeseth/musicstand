@@ -40,10 +40,11 @@ class Profile(object):
     An instrument profile.
     """
     
-    def __init__(self, name, peaks=None, path=None):
+    def __init__(self, name, peaks=None, path=None, version='3.0'):
         self.name = name
         self.peaks = peaks or {}
         self.path = path
+        self.version = version
     
     def save(self, path=None):
         path = path or self.path
@@ -54,45 +55,33 @@ class Profile(object):
             write_profile(self, stream)
         self.path = path
     
-    def find_match(self, peak, supporters, minimum_match=0.85):
+    def find_match(self, peaked_note, peaks, minimum_match=0.85,
+                   intensity_cut=0.45):
         try:
-            notes = self.peaks[peak]
+            notes = self.peaks[peaked_note]
         except KeyError:
             return None
         
-        supporting_notes = set()
-        for note, note_supporters in notes:
-            supporting_notes |= set(note_supporters)
-        
-        def create_vector(supporters):
-            return [supporters.get(note, 0.0) for note in supporting_notes]
-        
-        heard_vector = create_vector(supporters)
-        
-        def compute_similarity(note_supporters):
-            try:
-                return cosine_distance(heard_vector,
-                    create_vector(note_supporters))
-            except ZeroDivisionError:
-                return minimum_match
+        def create_vector(keys, peaks):
+            return [peaks.get(key, 0.0) for key in keys]
         
         best_note = None
         best_match = -1
         
-        # if peak == Note.parse('G5'):
-        #     print ' '.join('%3s' % str(n) for n in sorted(list(supporting_notes)))
-        #     print heard_vector
-        
-        # print 'peak of %3s: ' % str(peak),
-        for note, note_supporters in notes:
-            similarity = compute_similarity(note_supporters)
-            # print '%3s (%.3f)' % (note, similarity),
-            if similarity > best_match:
+        for note, note_peaks in notes:
+            if peaks[peaked_note] < intensity_cut * note_peaks[peaked_note]:
+                continue
+            
+            keys = note_peaks.keys()
+            heard = create_vector(keys, peaks)
+            fingerprint = create_vector(keys, note_peaks)
+            similarity = cosine_distance(heard, fingerprint)
+            
+            if similarity >= max(minimum_match, best_match):
                 best_match = similarity
                 best_note = note
-        # print
         
-        return (best_note, best_match) if best_match >= minimum_match else None
+        return best_note
     
     def __repr__(self):
         return '%s(%r, %r, %r)' % (type(self).__name__, self.name, self.peaks,
@@ -133,7 +122,7 @@ def read_profile(stream, path=None):
     except KeyError:
         raise ProfileReadError('profile has no version')
     else:
-        if version != '2.0':
+        if version not in ('2.0', '3.0'):
             raise ProfileReadError('incorrect profile version: %s' % version)
     
     name = raw['name']
@@ -149,11 +138,11 @@ def read_profile(stream, path=None):
             signalled.append((as_note(note), components))
         peaks[peaking_note] = signalled
     
-    return Profile(name, peaks, path)
+    return Profile(name, peaks, path, version)
 
 def write_profile(profile, stream):
     serialized = {
-        'version': '2.0',
+        'version': profile.version,
         'name': profile.name,
         'peaks': {}
     }

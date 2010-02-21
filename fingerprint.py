@@ -10,6 +10,7 @@ from mstand import audio
 from mstand.capture import Capturer
 from mstand.filters import *
 from mstand.notes import Note
+from mstand.identify import *
 from mstand.profile import *
 from mstand.terminal import color
 
@@ -22,96 +23,96 @@ def create_listener(options):
         audio.NegativeFilter(),
         audio.CoalesceFilter(),
         MinimumIntensityFilter(5.0),
-        # SmoothFilter(1, 4)
+        SmoothFilter(2, 3)
     ]
     
     return audio.Listener(window_size=options.window_size,
         interval=options.interval, filters=filters)
 
-def extract_notes(buckets):
-    filtered = defaultdict(float)
+class PeakDelegate(object):
+    def __init__(self, target):
+        self.best = None
+        self.target = target
     
-    for freq, intensity in buckets:
-        filtered[Note.from_frequency(freq)] = intensity
+    def peaked(self, peaking_note, peaks):
+        if self.target is not None and peaking_note != self.target:
+            return
+        if self.best is None or peaks[0][2] > self.best[0][2]:
+            self.best = peaks
+    
+    def show(self):
+        for note, index, intensity in self.best:
+            print '%3s @ %5.2f' % (note, intensity)
 
-    return filtered
+def find_peaks(results, target=None):
+    delegate = PeakDelegate(target)
+    peak_tracker = PeakTracker(delegate)
+    component_tracker = ComponentTracker(peak_tracker.update)
+    
+    for result in results:
+        component_tracker.update(result)
+    
+    if not delegate.best:
+        return None
+    
+    results = {}
+    for note, index, intensity in delegate.best:
+        results[note] = intensity
+    
+    return results
 
-def find_biggest_peak(results, harmonics):
-    maximum = index = peak_note = None
-    
-    for i, buckets in enumerate(results):
-        for note, intensity in buckets.iteritems():
-            if intensity > maximum and (not harmonics or note in harmonics):
-                maximum = intensity
-                index = i
-                peak_note = note
-    
-    return index, peak_note
-
-def find_note_peaks(results, note):
-    peaks = []
-    last_intensity = 0.0
-    increasing = True
-    
-    for i, buckets in enumerate(results):
-        intensity = buckets[note]
-        if intensity > last_intensity:
-            increasing = True
-        elif intensity < last_intensity and increasing:
-            increasing = False
-            peaks.append(i - 1)
-        last_intensity = intensity
-    
-    return peaks
+def create_vector(keys, peaks):
+    return [peaks.get(key, 0.0) for key in keys]
 
 def create_fingerprint(capturer, target, harmonics):
-    def capture():
-        return [extract_notes(buckets)
-            for buckets in capturer.capture()]
+    runs = []
+    notes = defaultdict(int)
     
-    print color('purple!', '--> Play %s quickly (do not hold the note).',
-        str(target))
-    results = capture()
-    
-    index, peak_note = find_biggest_peak(results, harmonics)
-    if not index:
-        print color('red', 'No peak!')
-        return None
-    print 'Found peak at result %d.' % index
-    
-    peak_intensity = results[index][peak_note]
-    start = index - 1
-    length = 6
-    
-    parts = results[start:start+length]
-    peak_intensity = sum(p[peak_note] for p in parts) / len(parts)
-    print color('green!', '  Peak note: %3s; intensity: %.1f', peak_note,
-        peak_intensity)
-    
-    print len(results)
-    components = list(sorted(results[index].iteritems(), key=lambda p: p[1],
-        reverse=True))
-    supporters = []
-    for note, intensity in components:
-        if note == peak_note:
+    first_run = True
+    while len(runs) < 4:
+        color_name = 'purple!' if first_run else 'black!'
+        print color(color_name, '--> Play %s quickly (do not hold the note).',
+            target)
+        first_run = False
+        
+        results = capturer.capture()
+        peaks = find_peaks(results)
+        if not peaks:
             continue
-        
-        start = index
-        length = 2
-        
-        parts = results[start:start+length]
-        avg_intensity = sum(p[note] for p in parts) / len(parts)
-        ratio = (avg_intensity / peak_intensity)
-        if ratio > 0.2:
-            # print '    ' + repr([p[note] for p in parts])
-            supporters.append((note, avg_intensity, ratio))
+        for note, intensity in peaks.iteritems():
+            notes[note] += 1
+        runs.append(peaks)
     
-    supporters.sort(key=lambda s: s[2], reverse=True)
-    for note, intensity, ratio in supporters:
-        print '  Supporter: %3s; intensity: %.1f (%.0f%%)' % \
-            (note, intensity, ratio * 100.0)
+    combined = {}
+    for note, count in notes.iteritems():
+        if count >= 3:
+            total = 0.0
+            for run in runs:
+                try:
+                    total += run[note]
+                except KeyError:
+                    continue
+            combined[note] = total / count
     
-    return (peak_note, peak_intensity, supporters)
+    keys = []
+    for note, intensity in sorted(combined.iteritems(), key=lambda (n, i): -i):
+        keys.append(note)
+        print '%3s @ %5.2f' % (note, intensity)
+    note_vector = create_vector(keys, combined)
+    
+    for i in xrange(2):
+        print color('green!', '--> Play %s quickly (do not hold the note).',
+            target)
+        results = capturer.capture()
+        peaks = find_peaks(results, keys[0])
+        
+        if not peaks:
+            print 'no match'
+        else:
+            print '%.3f' % cosine_distance(note_vector,
+                create_vector(keys, peaks))
+    
+    return keys[0], combined
 
 if __name__ == '__main__':
     from optparse import OptionParser
@@ -149,7 +150,7 @@ if __name__ == '__main__':
         except ProfileReadError, e:
             parser.error('invalid profile: %s' % e)
     
-    capturer = Capturer(create_listener(options), notes=False)
+    capturer = Capturer(create_listener(options))
     
     targets = []
     is_range = False
@@ -177,14 +178,14 @@ if __name__ == '__main__':
             result = create_fingerprint(capturer, target, harmonics)
             if not result:
                 continue
-            peak_note, peak_intensity, supporters = result
+            peak_note, intensity_map = result
             
             if not profile:
                 continue
             
             if peak_note in profile.peaks:
                 # prepare to overwrite any existing fingerprint
-            
+                
                 existing = None
                 for i, fingerprint in enumerate(profile.peaks[peak_note]):
                     note, existing_supporters = fingerprint
@@ -192,7 +193,7 @@ if __name__ == '__main__':
                     if note == target:
                         existing = profile.peaks[peak_note].pop(i)
                         break
-            
+                
                 if existing and not options.sure:
                     answer = raw_input('Do you want to overwrite the existing '
                         'fingerprint? (y/n): ')
@@ -202,11 +203,7 @@ if __name__ == '__main__':
             if peak_note not in profile.peaks:
                 profile.peaks[peak_note] = []
             
-            supporter_map = {}
-            for note, intensity, ratio in supporters:
-                supporter_map[note] = ratio
-            
-            profile.peaks[peak_note].append((target, supporter_map))
+            profile.peaks[peak_note].append((target, intensity_map))
     except RuntimeError, e:
         # yeah, this is abuse of exceptions... I don't care
         print e.args[0]

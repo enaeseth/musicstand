@@ -5,6 +5,7 @@ Note tracking and identification.
 """
 
 from mstand.notes import Note
+from mstand.terminal import color
 
 import sys
 
@@ -128,7 +129,7 @@ class Component(object):
     
     @property
     def zombie(self):
-        return self.faded_count >= Tracker.MAX_FADED_COUNT
+        return self.faded_count >= ComponentTracker.MAX_FADED_COUNT
     
     def __nonzero__(self):
         return self.state is not FADED
@@ -136,7 +137,7 @@ class Component(object):
     def __repr__(self):
         return '<%s @ %.1f, %s>' % (self.note, self.intensity, self.state)
 
-class Tracker(object):
+class ComponentTracker(object):
     """
     Tracks the frequency components that are being heard.
     """
@@ -180,14 +181,104 @@ class Tracker(object):
         self._callback(self._components)
         self._active_notes = current_notes
         self._counter += 1
+
+class PeakTracker(object):
+    """
+    Tracks components that have peaked.
+    """
     
+    def __init__(self, delegate, delay=2, look_back=2, min_intensity=10.0):
+        self._to_check = {}
+        self._fade_tracked = {}
+        self._delegate = delegate
+        self._delay = delay
+        self._look_back = look_back
+        self._min_intensity = min_intensity
+    
+    def _find_nearby_peaks(self, target, components):
+        position, intensity = target.peak
+        minimum = position - self._look_back
+        maximum = position + self._delay
+        
+        peaked_components = []
+        
+        for component in components.itervalues():
+            if not component.peak or component.peak[1] > intensity * 1.05:
+                continue
+            if minimum <= component.peak[0] <= maximum:
+                peaked_components.append((component.note,) + component.peak)
+        
+        peaked_components.sort(key=lambda c: c[2], reverse=True)
+        return peaked_components
+    
+    def update(self, components):
+        for note, component in components.iteritems():
+            if component.zombie:
+                try:
+                    fade_obj = self._fade_tracked[note]
+                except KeyError:
+                    pass
+                else:
+                    self._delegate.faded(fade_obj)
+                    del self._fade_tracked[note]
+            elif component.peaked and component.peak[1] >= self._min_intensity:
+                self._to_check[component.note] = (component.counter +
+                    self._delay)
+        
+        for note, counter in self._to_check.items():
+            try:
+                component = components[note]
+            except KeyError:
+                continue
+            
+            if component.counter >= counter:
+                del self._to_check[note]
+                if component.peak:
+                    peaked = self._find_nearby_peaks(component, components)
+                    result = self._delegate.peaked(note, peaked)
+                    if result is not None:
+                        former = self._fade_tracked.get(note)
+                        if former is not None and former != result:
+                            self._delegate.faded(former)
+                        self._fade_tracked[note] = result
+
+class Identifier(object):
+    """
+    Examines tracked peaks and identifies what notes are being played.
+    
+    The identifier should be passed as the delegate to PeakTracker's
+    initializer.
+    """
+    
+    HEARD = intern('+')
+    FADED = intern('-')
+    
+    def __init__(self, callback, profile, debug=False, debug_peaks=False):
+        self._callback = callback
+        self._profile = profile
+        self._counter = 0
+        self._debug = debug
+        self._debug_peaks = debug_peaks
+    
+    def peaked(self, peak_note, peaks):
+        peak_map = dict((note, intensity) for note, offset, intensity in peaks)
+        
+        from pprint import pprint
+        if peak_note == Note.parse('C4'):
+            pprint(peaks)
+        note = self._profile.find_match(peak_note, peak_map)
+        if note is not None:
+            self._callback(self.HEARD, note)
+            return note
+    
+    def faded(self, note):
+        self._callback(self.FADED, note)
 
 class Detector(object):
     """
     Examines tracked components and decides what notes are being played.
     """
     
-
     def __init__(self, callback, profile, debug=False, debug_peaks=False):
         self._callback = callback
         self._profile = profile
