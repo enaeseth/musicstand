@@ -138,7 +138,6 @@ class Display(object):
             #print music_list.get(index)
         
         music_list.bind('<Double-Button-1>', get_sel)
-        #music_list.bind('<Button-1>',set_sel)
         new_song_entry = Entry(container, fg="Red")
         new_song =  Label(container, text = "New Song")
         lilypond_entry = Entry(container, fg="Red")
@@ -540,7 +539,6 @@ class Display(object):
             self.cur_image.grid()
             height += self.speed
             self.cur_image.update()
-            #if height >= next_image.size[1]-new_top:
             if height >= cur_image.size[1] or height >= next_image.size[1]-new_top:
                 self.changing_page = False
         
