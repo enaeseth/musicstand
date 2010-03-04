@@ -36,7 +36,7 @@ class MusicStand(object):
         callbacks = dict(song_loaded=self._start_song,
             song_stopped=self._abort_song, song_restarted=self._restart_song)
         
-        self._capturer.start()
+        self._capturer.start() # also starts the listener
         self._matcher.start()
         
         try:
@@ -52,7 +52,7 @@ class MusicStand(object):
         finally:
             self._running = False
             self._matcher.shutdown()
-            self._capturer.stop()
+            self._capturer.stop() # similarly, also stops the listener
     
     def _start_song(self, lilypond_file):
         if self._debug:
