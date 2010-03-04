@@ -31,6 +31,8 @@ if __name__ == '__main__':
     from optparse import OptionParser
     
     parser = OptionParser('%prog [options] [note ...]')
+    parser.add_option('--dark', action='store_true',
+        help='Choose appropriate colors for a dark background')
     parser.add_option('-r', '--record', metavar='FILENAME',
         help='Record FFT results to a file')
     parser.add_option('-o', '--only-highlighted', action='store_true',
@@ -51,7 +53,7 @@ if __name__ == '__main__':
         help='FFT window size')
     parser.set_defaults(interval=1024, window_size=4096, overtones=True,
         decibels=False, smooth='0', min_intensity=2.0, plot=False,
-        only_highlighted=False)
+        only_highlighted=False, dark=False)
     
     options, args = parser.parse_args()
     
@@ -72,6 +74,10 @@ if __name__ == '__main__':
     
     notes = [note_to_freq(*parse_note(arg.upper())) for arg in args]
     colors = ['cyan!', 'green!', 'yellow!', 'red!', 'purple!', 'black!']
+    
+    if options.dark:
+        colors[-1] = 'white!'
+    
     if len(notes) > 0:
         print "Note highlighting:",
         highlighted = notes[:len(colors)]
@@ -137,7 +143,8 @@ if __name__ == '__main__':
                     else:
                         if options.only_highlighted:
                             continue
-                        text = color('black', text)
+                        text = color('white' if options.dark else 'black',
+                            text)
                     
                     print text,
                 print
