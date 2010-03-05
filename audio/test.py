@@ -127,6 +127,7 @@ if __name__ == '__main__':
             if len(notes) > 0:
                 found = set()
                 
+                printed_any = False
                 for freq, note, power in notes:
                     try:
                         series[note].append(power)
@@ -146,8 +147,10 @@ if __name__ == '__main__':
                         text = color('white' if options.dark else 'black',
                             text)
                     
+                    printed_any = True
                     print text,
-                print
+                if printed_any:
+                    print
                 
                 for unfound in (plotted_notes - found):
                     series[unfound].append(0.0)
